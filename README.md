@@ -7,3 +7,5 @@ For action to works, environment secrets need to be set up:
       DATABASE_PASSWORD: ${{secrets.DATABASE_PASSWORD}}
       DATABASE_NAME: ${{secrets.DATABASE_NAME}}
       DATABASE_USERNAME: ${{secrets.DATABASE_USERNAME}}
+
+Go to Setting >> Secrets and variables >> Actions
