@@ -9,6 +9,7 @@ For action to works, environment secrets need to be set up:
       DATABASE_USERNAME: ${{secrets.DATABASE_USERNAME}}
 
 Go to Setting >> Secrets and variables >> Actions. This is just for a local postgres in the VM of postgress
+
       DATABASE_HOSTNAME="localhost"
       DATABASE_PORT="5432"
       DATABASE_PASSWORD="dory"
