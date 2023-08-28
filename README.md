@@ -15,8 +15,6 @@ Go to Setting >> Secrets and variables >> Actions. This is just for a local post
       DATABASE_NAME="Test"
       DATABASE_USERNAME="postgres"
 
----
-
 For this app to be deployed on Heroku, add this step to the yml file. I also needs to set up environment variable on Heroku by going to Setting >> Config Vars. Then add the actual production environment secrets.
 
 ```
@@ -36,4 +34,4 @@ For this app to be deployed on Heroku, add this step to the yml file. I also nee
           heroku_api_key: ${{secrets.HEROKU_API_KEY}}
           heroku_app_name: ${{secrets.HEROKU_APP_NAME}}
           heroku_email: ${{secrets.HEROKU_EMAIL}}
-```
+```yml
