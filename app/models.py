@@ -21,6 +21,7 @@ class Cleaner(Base):
     phone = Column(String, nullable=True)
 
     bookings = relationship("Booking", back_populates="cleaner")
+    sessions = relationship("CleaningSession", back_populates="cleaner")
 
 
 class Booking(Base):
@@ -39,7 +40,34 @@ class Booking(Base):
     nights = Column(Integer, nullable=False)
     booked_date = Column(Date, nullable=True)
     listing = Column(String, nullable=True)
-    earnings = Column(String, nullable=True)  # stored as string to preserve currency symbol
+    earnings = Column(String, nullable=True)
     cleaner_id = Column(Integer, ForeignKey("cleaners.id"), nullable=True)
 
     cleaner = relationship("Cleaner", back_populates="bookings")
+    session_bookings = relationship("SessionBooking", back_populates="booking")
+
+
+class CleaningSession(Base):
+    __tablename__ = "cleaning_sessions"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    cleaner_id = Column(Integer, ForeignKey("cleaners.id"), nullable=False)
+    clean_date = Column(Date, nullable=False)
+    hours      = Column(Integer, nullable=False, default=0)
+    minutes    = Column(Integer, nullable=False, default=0)  # 0-59
+    notes      = Column(String, nullable=True)
+
+    cleaner          = relationship("Cleaner", back_populates="sessions")
+    session_bookings = relationship("SessionBooking", back_populates="session")
+
+
+class SessionBooking(Base):
+    """Link table — one cleaning session can cover multiple bookings."""
+    __tablename__ = "session_bookings"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    session_id        = Column(Integer, ForeignKey("cleaning_sessions.id"), nullable=False)
+    confirmation_code = Column(String, ForeignKey("bookings.confirmation_code"), nullable=False)
+
+    session = relationship("CleaningSession", back_populates="session_bookings")
+    booking = relationship("Booking", back_populates="session_bookings")

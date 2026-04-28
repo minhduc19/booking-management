@@ -73,3 +73,34 @@ class BookingResponse(BookingBase):
 
 
 CleanerWithBookings.model_rebuild()
+
+
+# --- Cleaning Sessions ---
+
+class CleaningSessionCreate(BaseModel):
+    cleaner_id: int
+    clean_date: date
+    hours: int = 0
+    minutes: int = 0  # 0-59
+    notes: str | None = None
+    confirmation_codes: list[str] = []  # bookings to attach to this session
+
+
+class SessionBookingResponse(BaseModel):
+    id: int
+    confirmation_code: str
+
+    model_config = {"from_attributes": True}
+
+
+class CleaningSessionResponse(BaseModel):
+    id: int
+    cleaner_id: int
+    clean_date: date
+    hours: int
+    minutes: int
+    notes: str | None = None
+    cleaner: CleanerResponse | None = None
+    session_bookings: list[SessionBookingResponse] = []
+
+    model_config = {"from_attributes": True}

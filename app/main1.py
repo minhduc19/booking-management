@@ -186,3 +186,77 @@ async def bulk_upload_bookings(file: UploadFile = File(...), db: Session = Depen
         "created_codes": created,
         "updated_codes": updated,
     }
+
+
+
+# --- Cleaning Sessions ---
+
+@app.post("/cleaning-sessions/", response_model=schemas.CleaningSessionResponse)
+def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session = Depends(get_db)):
+    if not 0 <= session.minutes <= 59:
+        raise HTTPException(status_code=400, detail="minutes must be between 0 and 59")
+    cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == session.cleaner_id).first()
+    if cleaner is None:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+
+    # Validate all confirmation codes exist
+    for code in session.confirmation_codes:
+        if not db.query(models.Booking).filter(models.Booking.confirmation_code == code).first():
+            raise HTTPException(status_code=404, detail=f"Booking not found: {code}")
+
+    data = session.model_dump(exclude={"confirmation_codes"})
+    db_session = models.CleaningSession(**data)
+    db.add(db_session)
+    db.flush()  # get db_session.id before committing
+
+    for code in session.confirmation_codes:
+        db.add(models.SessionBooking(session_id=db_session.id, confirmation_code=code))
+
+    db.commit()
+    db.refresh(db_session)
+    return db_session
+
+
+@app.post("/cleaning-sessions/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleaningSessionResponse)
+def add_booking_to_session(session_id: int, confirmation_code: str, db: Session = Depends(get_db)):
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not db.query(models.Booking).filter(models.Booking.confirmation_code == confirmation_code).first():
+        raise HTTPException(status_code=404, detail="Booking not found")
+    already = db.query(models.SessionBooking).filter(
+        models.SessionBooking.session_id == session_id,
+        models.SessionBooking.confirmation_code == confirmation_code
+    ).first()
+    if already:
+        raise HTTPException(status_code=400, detail="Booking already in this session")
+    db.add(models.SessionBooking(session_id=session_id, confirmation_code=confirmation_code))
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+@app.get("/cleaning-sessions/", response_model=list[schemas.CleaningSessionResponse])
+def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(get_db)):
+    query = db.query(models.CleaningSession)
+    if cleaner_id:
+        query = query.filter(models.CleaningSession.cleaner_id == cleaner_id)
+    return query.all()
+
+
+@app.get("/cleaning-sessions/{session_id}", response_model=schemas.CleaningSessionResponse)
+def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.delete("/cleaning-sessions/{session_id}")
+def delete_cleaning_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return {"deleted": session_id}
