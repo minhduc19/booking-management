@@ -77,7 +77,7 @@ CleanerWithBookings.model_rebuild()
 
 # --- Cleaning Sessions ---
 
-class CleaningSessionCreate(BaseModel):
+class CleanerSessionCreate(BaseModel):
     cleaner_id: int
     clean_date: date
     hours: int = 0
@@ -93,7 +93,7 @@ class SessionBookingResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class CleaningSessionResponse(BaseModel):
+class CleanerSessionResponse(BaseModel):
     id: int
     cleaner_id: int
     clean_date: date

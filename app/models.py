@@ -21,7 +21,7 @@ class Cleaner(Base):
     phone = Column(String, nullable=True)
 
     bookings = relationship("Booking", back_populates="cleaner")
-    sessions = relationship("CleaningSession", back_populates="cleaner")
+    sessions = relationship("CleanerSession", back_populates="cleaner")
 
 
 class Booking(Base):
@@ -47,7 +47,7 @@ class Booking(Base):
     session_bookings = relationship("SessionBooking", back_populates="booking")
 
 
-class CleaningSession(Base):
+class CleanerSession(Base):
     __tablename__ = "cleaning_sessions"
 
     id         = Column(Integer, primary_key=True, index=True)
@@ -69,5 +69,5 @@ class SessionBooking(Base):
     session_id        = Column(Integer, ForeignKey("cleaning_sessions.id"), nullable=False)
     confirmation_code = Column(String, ForeignKey("bookings.confirmation_code"), nullable=False)
 
-    session = relationship("CleaningSession", back_populates="session_bookings")
+    session = relationship("CleanerSession", back_populates="session_bookings")
     booking = relationship("Booking", back_populates="session_bookings")

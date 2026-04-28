@@ -190,8 +190,8 @@ async def bulk_upload_bookings(file: UploadFile = File(...), db: Session = Depen
 
 # --- Cleaning Sessions ---
 
-@app.post("/cleaning-sessions/", response_model=schemas.CleaningSessionResponse)
-def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session = Depends(get_db)):
+@app.post("/cleaning-sessions/", response_model=schemas.CleanerSessionResponse)
+def create_cleaning_session(session: schemas.CleanerSessionCreate, db: Session = Depends(get_db)):
     if not 0 <= session.minutes <= 59:
         raise HTTPException(status_code=400, detail="minutes must be between 0 and 59")
     cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == session.cleaner_id).first()
@@ -204,7 +204,7 @@ def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session 
             raise HTTPException(status_code=404, detail=f"Booking not found: {code}")
 
     data = session.model_dump(exclude={"confirmation_codes"})
-    db_session = models.CleaningSession(**data)
+    db_session = models.CleanerSession(**data)
     db.add(db_session)
     db.flush()  # get db_session.id before committing
 
@@ -216,9 +216,9 @@ def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session 
     return db_session
 
 
-@app.post("/cleaning-sessions/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleaningSessionResponse)
+@app.post("/cleaning-sessions/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleanerSessionResponse)
 def add_booking_to_session(session_id: int, confirmation_code: str, db: Session = Depends(get_db)):
-    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    session = db.query(models.CleanerSession).filter(models.CleanerSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     if not db.query(models.Booking).filter(models.Booking.confirmation_code == confirmation_code).first():
@@ -235,17 +235,17 @@ def add_booking_to_session(session_id: int, confirmation_code: str, db: Session 
     return session
 
 
-@app.get("/cleaning-sessions/", response_model=list[schemas.CleaningSessionResponse])
+@app.get("/cleaning-sessions/", response_model=list[schemas.CleanerSessionResponse])
 def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(get_db)):
-    query = db.query(models.CleaningSession)
+    query = db.query(models.CleanerSession)
     if cleaner_id:
-        query = query.filter(models.CleaningSession.cleaner_id == cleaner_id)
+        query = query.filter(models.CleanerSession.cleaner_id == cleaner_id)
     return query.all()
 
 
-@app.get("/cleaning-sessions/{session_id}", response_model=schemas.CleaningSessionResponse)
+@app.get("/cleaning-sessions/{session_id}", response_model=schemas.CleanerSessionResponse)
 def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    session = db.query(models.CleanerSession).filter(models.CleanerSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
@@ -253,7 +253,7 @@ def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
 
 @app.delete("/cleaning-sessions/{session_id}")
 def delete_cleaning_session(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    session = db.query(models.CleanerSession).filter(models.CleanerSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     db.delete(session)
