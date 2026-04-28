@@ -1,19 +1,18 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.exc import OperationalError
-#import psycopg2
-#from psycopg2.extras import RealDictCursor
-import time
-from .config import settings
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-SQLALCHEMY_DATABASE_URL = f'postgresql://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}'
+from config import settings
 
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    settings.database_url,
+    connect_args={"check_same_thread": False},  # Required for SQLite
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 def get_db():

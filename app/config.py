@@ -1,14 +1,12 @@
-from pydantic_settings import BaseSettings,SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_hostname: str
-    database_port: str 
-    database_password: str 
-    database_name: str
-    database_username: str
+    app_name: str = "FastAPI SQLite App"
+    database_url: str = "sqlite:///./app.db"
 
-    model_config = SettingsConfigDict(env_file='.env',env_file_encoding='utf-8')
+    class Config:
+        env_file = ".env"
 
 
 settings = Settings()
