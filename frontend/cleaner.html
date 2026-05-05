@@ -67,7 +67,7 @@
                 const data = await response.json();
 
                 renderCleaner(data);
-                renderSessions(data.sessions);
+                renderSessions(data.sessions, data.rate);
 
             } catch (error) {
                 document.getElementById("cleaner-info").innerHTML =
@@ -90,13 +90,15 @@
             `;
         }
 
-        function renderSessions(sessions) {
+        function renderSessions(sessions, rate) {
             const container = document.getElementById("sessions");
 
             if (!sessions || sessions.length === 0) {
                 container.innerHTML = "<p>No sessions found.</p>";
                 return;
             }
+
+            let totalMinutes = 0;
 
             let html = `
                 <table border="1">
@@ -114,6 +116,8 @@
             `;
 
             sessions.forEach(session => {
+                totalMinutes += (session.hours * 60) + session.minutes;
+
                 const bookingCodes = session.session_bookings
                     .map(booking => booking.confirmation_code)
                     .join("<br>");
@@ -130,9 +134,18 @@
                 `;
             });
 
+            const totalHours = totalMinutes / 60;
+            const totalCost = totalHours * rate;
+
             html += `
                     </tbody>
                 </table>
+
+                <br>
+
+                <p><strong>Total Hours:</strong> ${totalHours.toFixed(2)}</p>
+                <p><strong>Hourly Rate:</strong> £${rate}</p>
+                <p><strong>Total Cost:</strong> £${totalCost.toFixed(2)}</p>
             `;
 
             container.innerHTML = html;
