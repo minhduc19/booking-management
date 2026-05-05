@@ -67,7 +67,7 @@ class CleaningSession(Base):
     notes      = Column(String, nullable=True)
 
     cleaner          = relationship("Cleaner", back_populates="sessions")
-    session_bookings = relationship("SessionBooking", back_populates="session")
+    session_bookings = relationship("SessionBooking", back_populates="session", cascade="all, delete-orphan")
 
 
 class SessionBooking(Base):

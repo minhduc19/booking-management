@@ -375,7 +375,8 @@ def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session 
     data = session.model_dump(exclude={"confirmation_codes"})
     db_session = models.CleaningSession(**data)
     db.add(db_session)
-    db.flush()  # get db_session.id before committing
+    db.commit()                   # ← guarantees id is written to DB
+    db.refresh(db_session)        # ← populates db_session.id
 
     for code in session.confirmation_codes:
         db.add(models.SessionBooking(session_id=db_session.id, confirmation_code=code))
