@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cleaner Sessions</title>
+</head>
+<body>
+
+    <h1>Cleaner Sessions</h1>
+
+    <div>
+        <label for="cleaner">Select Cleaner:</label>
+        <select id="cleaner">
+            <option value="1">Yoko</option>
+            <option value="2">Cleaner 2</option>
+            <option value="3">Cleaner 3</option>
+        </select>
+    </div>
+
+    <br>
+
+    <div>
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date">
+
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date">
+
+        <button onclick="fetchSessions()">Fetch Sessions</button>
+    </div>
+
+    <hr>
+
+    <div id="cleaner-info"></div>
+
+    <h2>Sessions</h2>
+    <div id="sessions"></div>
+
+    <script>
+        async function fetchSessions() {
+            const cleanerId = document.getElementById("cleaner").value;
+            const startDate = document.getElementById("start_date").value;
+            const endDate = document.getElementById("end_date").value;
+
+            let url = `https://booking-management-2-3851.onrender.com/cleaners/${cleanerId}/sessions`;
+
+            const params = new URLSearchParams();
+
+            if (startDate) {
+                params.append("start_date", startDate);
+            }
+
+            if (endDate) {
+                params.append("end_date", endDate);
+            }
+
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch data");
+                }
+
+                const data = await response.json();
+
+                renderCleaner(data);
+                renderSessions(data.sessions);
+
+            } catch (error) {
+                document.getElementById("cleaner-info").innerHTML =
+                    `<p>Error: ${error.message}</p>`;
+
+                document.getElementById("sessions").innerHTML = "";
+            }
+        }
+
+        function renderCleaner(cleaner) {
+            const container = document.getElementById("cleaner-info");
+
+            container.innerHTML = `
+                <h2>Cleaner Info</h2>
+                <p><strong>ID:</strong> ${cleaner.id}</p>
+                <p><strong>Name:</strong> ${cleaner.name}</p>
+                <p><strong>Email:</strong> ${cleaner.email || ""}</p>
+                <p><strong>Phone:</strong> ${cleaner.phone || ""}</p>
+                <p><strong>Rate:</strong> £${cleaner.rate || 0}/hour</p>
+            `;
+        }
+
+        function renderSessions(sessions) {
+            const container = document.getElementById("sessions");
+
+            if (!sessions || sessions.length === 0) {
+                container.innerHTML = "<p>No sessions found.</p>";
+                return;
+            }
+
+            let html = `
+                <table border="1">
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th>Date</th>
+                            <th>Hours</th>
+                            <th>Minutes</th>
+                            <th>Notes</th>
+                            <th>Booking Codes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            sessions.forEach(session => {
+                const bookingCodes = session.session_bookings
+                    .map(booking => booking.confirmation_code)
+                    .join("<br>");
+
+                html += `
+                    <tr>
+                        <td>${session.id}</td>
+                        <td>${session.clean_date}</td>
+                        <td>${session.hours}</td>
+                        <td>${session.minutes}</td>
+                        <td>${session.notes || ""}</td>
+                        <td>${bookingCodes}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Auto-load when page opens
+        fetchSessions();
+    </script>
+
+</body>
+</html>

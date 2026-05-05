@@ -35,6 +35,12 @@ async def read_upload():
         html_content = f.read()
     return HTMLResponse(content=html_content)
 
+@app.get("/index-cleaner", response_class=HTMLResponse)
+async def read_cleaner():
+    with open("frontend/cleaner.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
 @app.get("/")
 def read_root():
     return {"message": "Changed to private repository"}
