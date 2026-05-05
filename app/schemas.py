@@ -33,6 +33,7 @@ class CleanerBase(BaseModel):
     name: str
     email: str | None = None
     phone: str | None = None
+    rate: float | None = None  # hourly rate
 
 
 class CleanerCreate(CleanerBase):
