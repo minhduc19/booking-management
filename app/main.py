@@ -259,67 +259,109 @@ def parse_date(value: str):
             continue
     raise ValueError(f"Unrecognised date format: {value!r}")
 
-
 @app.post("/bookings/bulk-upload/")
-async def bulk_upload_bookings(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are accepted")
-
-    contents = await file.read()
-    reader = csv.DictReader(io.StringIO(contents.decode("utf-8")))
-
+async def bulk_upload_bookings(
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db)
+):
     created, updated, errors = [], [], []
 
-    for i, row in enumerate(reader, start=2):  # start=2 accounts for header row
+    for file in files:
+        if not file.filename.endswith(".csv"):
+            errors.append({
+                "file": file.filename,
+                "error": "Only CSV files are accepted"
+            })
+            continue
+
         try:
-            data = {model_field: row[csv_col].strip() for csv_col, model_field in COLUMN_MAP.items()}
+            contents = await file.read()
+            reader = csv.DictReader(
+                io.StringIO(contents.decode("utf-8"))
+            )
 
-            # Type coercions
-            data["adults"] = int(data["adults"])
-            data["children"] = int(data["children"])
-            data["infants"] = int(data["infants"])
-            data["nights"] = int(data["nights"])
-            data["start_date"] = parse_date(data["start_date"])
-            data["end_date"] = parse_date(data["end_date"])
-            data["booked_date"] = parse_date(data["booked_date"]) if data["booked_date"] else None
+            for i, row in enumerate(reader, start=2):
+                try:
+                    data = {
+                        model_field: row[csv_col].strip()
+                        for csv_col, model_field in COLUMN_MAP.items()
+                    }
 
-            # Resolve property from listing name
-            listing = data.get("listing", "")
-            property_address = LISTING_TO_PROPERTY.get(listing)
-            if property_address:
-                prop = db.query(models.Property).filter(
-                    models.Property.address == property_address
-                ).first()
-                if not prop:
-                    prop = models.Property(address=property_address)
-                    db.add(prop)
-                    db.flush()
-                data["property_id"] = prop.id
+                    # Type coercions
+                    data["adults"] = int(data["adults"])
+                    data["children"] = int(data["children"])
+                    data["infants"] = int(data["infants"])
+                    data["nights"] = int(data["nights"])
+                    data["start_date"] = parse_date(data["start_date"])
+                    data["end_date"] = parse_date(data["end_date"])
+                    data["booked_date"] = (
+                        parse_date(data["booked_date"])
+                        if data["booked_date"]
+                        else None
+                    )
 
-            # Upsert — update if exists, create if not
-            exists = db.query(models.Booking).filter(
-                models.Booking.confirmation_code == data["confirmation_code"]
-            ).first()
-            if exists:
-                for key, value in data.items():
-                    setattr(exists, key, value)
-                updated.append(data["confirmation_code"])
-            else:
-                db.add(models.Booking(**data))
-                created.append(data["confirmation_code"])
+                    # Resolve property from listing name
+                    listing = data.get("listing", "")
+                    property_address = LISTING_TO_PROPERTY.get(listing)
+
+                    if property_address:
+                        prop = db.query(models.Property).filter(
+                            models.Property.address == property_address
+                        ).first()
+
+                        if not prop:
+                            prop = models.Property(address=property_address)
+                            db.add(prop)
+                            db.flush()
+
+                        data["property_id"] = prop.id
+
+                    # Upsert booking
+                    exists = db.query(models.Booking).filter(
+                        models.Booking.confirmation_code == data["confirmation_code"]
+                    ).first()
+
+                    if exists:
+                        for key, value in data.items():
+                            setattr(exists, key, value)
+
+                        updated.append({
+                            "file": file.filename,
+                            "confirmation_code": data["confirmation_code"]
+                        })
+                    else:
+                        db.add(models.Booking(**data))
+
+                        created.append({
+                            "file": file.filename,
+                            "confirmation_code": data["confirmation_code"]
+                        })
+
+                except Exception as e:
+                    errors.append({
+                        "file": file.filename,
+                        "row": i,
+                        "error": str(e)
+                    })
 
         except Exception as e:
-            errors.append({"row": i, "error": str(e)})
+            errors.append({
+                "file": file.filename,
+                "error": f"Failed to process file: {str(e)}"
+            })
 
     db.commit()
 
     return {
+        "files_processed": len(files),
         "created": len(created),
         "updated": len(updated),
-        "errors": errors,
+        "errors_count": len(errors),
         "created_codes": created,
         "updated_codes": updated,
+        "errors": errors,
     }
+
 
 
 
