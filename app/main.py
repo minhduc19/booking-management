@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app import models, schemas
 from app.database import engine, get_db
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 
 
 
@@ -21,6 +22,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/index-checkout", response_class=HTMLResponse)
+async def read_index():
+    with open("checkout.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
 
 @app.get("/")
 def read_root():
