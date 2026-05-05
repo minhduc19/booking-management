@@ -45,11 +45,6 @@ class CleanerResponse(CleanerBase):
     model_config = {"from_attributes": True}
 
 
-class CleanerWithBookings(CleanerResponse):
-    bookings: list["BookingResponse"] = []
-
-    model_config = {"from_attributes": True}
-
 
 # --- Bookings ---
 
@@ -67,7 +62,6 @@ class BookingBase(BaseModel):
     booked_date: date | None = None
     listing: str | None = None
     earnings: str | None = None
-    cleaner_id: int | None = None
     property_id: int | None = None
 
 
@@ -77,13 +71,11 @@ class BookingCreate(BookingBase):
 
 class BookingResponse(BookingBase):
     id: int
-    cleaner: CleanerResponse | None = None
     property: PropertyResponse | None = None
 
     model_config = {"from_attributes": True}
 
 
-CleanerWithBookings.model_rebuild()
 
 
 # --- Cleaning Sessions ---
@@ -111,7 +103,6 @@ class CleaningSessionResponse(BaseModel):
     hours: int
     minutes: int
     notes: str | None = None
-    cleaner: CleanerResponse | None = None
     session_bookings: list[SessionBookingResponse] = []
 
     model_config = {"from_attributes": True}

@@ -3,15 +3,24 @@ import io
 from datetime import date, datetime
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import engine, get_db
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
@@ -55,26 +64,12 @@ def list_cleaners(db: Session = Depends(get_db)):
     return db.query(models.Cleaner).all()
 
 
-@app.get("/cleaners/{cleaner_id}", response_model=schemas.CleanerWithBookings)
+@app.get("/cleaners/{cleaner_id}", response_model=schemas.CleanerResponse)
 def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
     cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == cleaner_id).first()
     if cleaner is None:
         raise HTTPException(status_code=404, detail="Cleaner not found")
     return cleaner
-
-
-@app.patch("/bookings/{confirmation_code}/assign-cleaner/{cleaner_id}", response_model=schemas.BookingResponse)
-def assign_cleaner(confirmation_code: str, cleaner_id: int, db: Session = Depends(get_db)):
-    booking = db.query(models.Booking).filter(models.Booking.confirmation_code == confirmation_code).first()
-    if booking is None:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == cleaner_id).first()
-    if cleaner is None:
-        raise HTTPException(status_code=404, detail="Cleaner not found")
-    booking.cleaner_id = cleaner_id
-    db.commit()
-    db.refresh(booking)
-    return booking
 
 
 # --- Bookings ---
@@ -116,6 +111,12 @@ def delete_all_bookings(db: Session = Depends(get_db)):
 def bookings_by_checkout(db: Session = Depends(get_db)):
     bookings = (
         db.query(models.Booking)
+        .options(
+            joinedload(models.Booking.session_bookings)
+            .joinedload(models.SessionBooking.session)
+            .joinedload(models.CleaningSession.cleaner),
+            joinedload(models.Booking.property),
+        )
         .order_by(models.Booking.end_date)
         .all()
     )
@@ -130,9 +131,17 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
 
         grouped[date_key]["total"] += 1
 
+        # Find cleaners assigned via cleaning sessions
+        cleaners = list({
+            sb.session.cleaner.name
+            for sb in booking.session_bookings
+            if sb.session and sb.session.cleaner
+        })
+
         entry = {
             "confirmation_code": booking.confirmation_code,
             "listing": booking.listing,
+            "cleaners": cleaners,
         }
         if booking.property:
             address = booking.property.address

@@ -29,7 +29,6 @@ class Cleaner(Base):
     email = Column(String, unique=True, nullable=True)
     phone = Column(String, nullable=True)
 
-    bookings = relationship("Booking", back_populates="cleaner")
     sessions = relationship("CleaningSession", back_populates="cleaner")
 
 
@@ -50,10 +49,8 @@ class Booking(Base):
     booked_date = Column(Date, nullable=True)
     listing = Column(String, nullable=True)
     earnings = Column(String, nullable=True)
-    cleaner_id = Column(Integer, ForeignKey("cleaners.id"), nullable=True)
     property_id = Column(Integer, ForeignKey("properties.id"), nullable=True)
 
-    cleaner = relationship("Cleaner", back_populates="bookings")
     property = relationship("Property", back_populates="bookings")
     session_bookings = relationship("SessionBooking", back_populates="booking")
 
