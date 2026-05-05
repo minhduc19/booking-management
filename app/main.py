@@ -83,7 +83,7 @@ def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
 
 @app.get(
     "/cleaners/{cleaner_id}/sessions",
-    response_model=list[schemas.CleaningSessionResponse]
+    response_model=schemas.CleanerResponse
 )
 def get_cleaner_sessions(
     cleaner_id: int,
@@ -96,7 +96,16 @@ def get_cleaner_sessions(
     ).first()
 
     if cleaner is None:
-        raise HTTPException(status_code=404, detail="Cleaner not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Cleaner not found"
+        )
+
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status_code=400,
+            detail="start_date cannot be greater than end_date"
+        )
 
     query = db.query(models.CleaningSession).filter(
         models.CleaningSession.cleaner_id == cleaner_id
@@ -112,11 +121,14 @@ def get_cleaner_sessions(
             models.CleaningSession.clean_date <= end_date
         )
 
-    sessions = query.order_by(
+    filtered_sessions = query.order_by(
         models.CleaningSession.clean_date.asc()
     ).all()
 
-    return sessions
+    # Replace cleaner.sessions with filtered result
+    cleaner.sessions = filtered_sessions
+
+    return cleaner
 
 # --- Bookings ---
 
