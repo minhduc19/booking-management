@@ -191,8 +191,7 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
         .all()
     )
 
-    # Group by date, then by property
-    grouped: dict[str, dict] = {}
+    grouped: dict = {}
 
     for booking in bookings:
         date_key = str(booking.end_date)
@@ -201,18 +200,29 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
 
         grouped[date_key]["total"] += 1
 
-        # Find cleaners assigned via cleaning sessions
-        cleaners = list({
-            sb.session.cleaner.name
+        sessions = [
+            {
+                "session_id": sb.session.id,
+                "cleaner_name": sb.session.cleaner.name if sb.session.cleaner else None,
+            }
             for sb in booking.session_bookings
-            if sb.session and sb.session.cleaner
-        })
+            if sb.session
+        ]
+
+        # Deduplicate by session_id
+        seen = set()
+        unique_sessions = []
+        for s in sessions:
+            if s["session_id"] not in seen:
+                seen.add(s["session_id"])
+                unique_sessions.append(s)
 
         entry = {
             "confirmation_code": booking.confirmation_code,
             "listing": booking.listing,
-            "cleaners": cleaners,
+            "sessions": unique_sessions,
         }
+
         if booking.property:
             address = booking.property.address
             if address not in grouped[date_key]["by_property"]:

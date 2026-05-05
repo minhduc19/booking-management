@@ -101,6 +101,21 @@
     .cleaner-tag { font-size: 0.65rem; padding: 3px 10px; background: #1e2a0e; border: 1px solid var(--accent-dim); color: var(--accent); letter-spacing: 0.06em; }
     .no-cleaner { font-size: 0.65rem; color: var(--danger); letter-spacing: 0.06em; }
 
+    .delete-session-btn {
+      font-family: var(--mono);
+      font-size: 0.55rem;
+      padding: 2px 7px;
+      background: transparent;
+      border: 1px solid #3a2020;
+      color: var(--danger);
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      margin-left: 6px;
+      vertical-align: middle;
+      transition: all 0.15s;
+    }
+    .delete-session-btn:hover { background: #3a2020; }
+
     table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
     th { text-align: left; padding: 6px 12px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 400; }
     td { padding: 8px 12px; border-bottom: 1px solid #1a1a1a; color: #e0e0e0; }
@@ -298,25 +313,31 @@
       var bodyHTML = '';
 
       day.by_property.forEach(function(prop) {
-        var propCleaners = [];
+        var propCleanerNames = [];
         prop.bookings.forEach(function(b) {
-          (b.cleaners || []).forEach(function(c) {
-            if (propCleaners.indexOf(c) === -1) propCleaners.push(c);
+          (b.sessions || []).forEach(function(s) {
+            if (s.cleaner_name && propCleanerNames.indexOf(s.cleaner_name) === -1) {
+              propCleanerNames.push(s.cleaner_name);
+            }
           });
         });
 
-        var cleanersHTML = propCleaners.length
-          ? propCleaners.map(function(c) { return '<span class="cleaner-tag">&#x2713; ' + c + '</span>'; }).join('')
+        var cleanersHTML = propCleanerNames.length
+          ? propCleanerNames.map(function(c) { return '<span class="cleaner-tag">&#x2713; ' + c + '</span>'; }).join('')
           : '<span class="no-cleaner">&#x26A0; No cleaner assigned</span>';
 
         var rowsHTML = prop.bookings.map(function(b) {
-          var cleanerCell = (b.cleaners && b.cleaners.length)
-            ? b.cleaners.join(', ')
+          var sessionCells = (b.sessions && b.sessions.length)
+            ? b.sessions.map(function(s) {
+                return '<span>' + (s.cleaner_name || 'Unknown') +
+                  '<button class="delete-session-btn" data-session-id="' + s.session_id + '">&#x2715;</button>' +
+                  '</span>';
+              }).join(' ')
             : '<span style="color:var(--danger);font-size:0.65rem">unassigned</span>';
           return '<tr>' +
             '<td class="code">' + b.confirmation_code + '</td>' +
             '<td class="listing-cell">' + (b.listing || '-') + '</td>' +
-            '<td>' + cleanerCell + '</td>' +
+            '<td>' + sessionCells + '</td>' +
             '</tr>';
         }).join('');
 
@@ -346,6 +367,15 @@
       }
 
       body.innerHTML = bodyHTML;
+
+      body.querySelectorAll('.delete-session-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var sessionId = btn.dataset.sessionId;
+          if (!confirm('Delete this cleaning session?')) return;
+          deleteSession(sessionId);
+        });
+      });
 
       body.querySelectorAll('.edit-btn').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
@@ -427,6 +457,20 @@
       feedback.className = 'modal-feedback error';
       saveBtn.disabled = false;
     });
+  }
+
+  function deleteSession(sessionId) {
+    fetch(API + '/cleaning-sessions/' + sessionId, { method: 'DELETE' })
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function() {
+        load(); // refresh the whole view
+      })
+      .catch(function(e) {
+        alert('Failed to delete session: ' + e.message);
+      });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
