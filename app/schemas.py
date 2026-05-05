@@ -105,9 +105,9 @@ class CleaningSessionResponse(BaseModel):
     hours: int
     minutes: int
     notes: str | None = None
-    cleaner: "CleanerResponse | None" = None
-    #session_bookings: list[SessionBookingResponse] = []
+    #cleaner: "CleanerResponse | None" = None
+    session_bookings: list[SessionBookingResponse] = []
  
     model_config = {"from_attributes": True}
-
+ 
 CleanerResponse.model_rebuild()

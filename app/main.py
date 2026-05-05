@@ -2,9 +2,9 @@ import csv
 import io
 from datetime import date, datetime
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Query
 from sqlalchemy.orm import Session, joinedload
-
+from typing import Optional
 from app import models, schemas
 from app.database import engine, get_db
 from fastapi.middleware.cors import CORSMiddleware
@@ -78,22 +78,44 @@ def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cleaner not found")
     return cleaner
 
-@app.get("/cleaners/{cleaner_id}/sessions", response_model=list[schemas.CleaningSessionResponse])
-def get_cleaner_sessions(cleaner_id: int, db: Session = Depends(get_db)):
-    cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == cleaner_id).first()
+
+
+
+@app.get(
+    "/cleaners/{cleaner_id}/sessions",
+    response_model=list[schemas.CleaningSessionResponse]
+)
+def get_cleaner_sessions(
+    cleaner_id: int,
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    db: Session = Depends(get_db)
+):
+    cleaner = db.query(models.Cleaner).filter(
+        models.Cleaner.id == cleaner_id
+    ).first()
+
     if cleaner is None:
         raise HTTPException(status_code=404, detail="Cleaner not found")
-    sessions = (
-        db.query(models.CleaningSession)
-        .filter(models.CleaningSession.cleaner_id == cleaner_id)
-        .options(
-            joinedload(models.CleaningSession.session_bookings)
-            .joinedload(models.SessionBooking.booking),
-            joinedload(models.CleaningSession.cleaner),
-        )
-        .order_by(models.CleaningSession.clean_date.desc())
-        .all()
+
+    query = db.query(models.CleaningSession).filter(
+        models.CleaningSession.cleaner_id == cleaner_id
     )
+
+    if start_date:
+        query = query.filter(
+            models.CleaningSession.clean_date >= start_date
+        )
+
+    if end_date:
+        query = query.filter(
+            models.CleaningSession.clean_date <= end_date
+        )
+
+    sessions = query.order_by(
+        models.CleaningSession.clean_date.asc()
+    ).all()
+
     return sessions
 
 # --- Bookings ---
