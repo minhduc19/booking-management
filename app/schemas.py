@@ -42,6 +42,7 @@ class CleanerCreate(CleanerBase):
 
 class CleanerResponse(CleanerBase):
     id: int
+    sessions: list["CleaningSessionResponse"] = []
 
     model_config = {"from_attributes": True}
 
@@ -107,3 +108,5 @@ class CleaningSessionResponse(BaseModel):
     session_bookings: list[SessionBookingResponse] = []
 
     model_config = {"from_attributes": True}
+
+CleanerResponse.model_rebuild()

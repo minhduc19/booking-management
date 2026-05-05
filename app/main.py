@@ -78,6 +78,23 @@ def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cleaner not found")
     return cleaner
 
+@app.get("/cleaners/{cleaner_id}/sessions", response_model=list[schemas.CleaningSessionResponse])
+def get_cleaner_sessions(cleaner_id: int, db: Session = Depends(get_db)):
+    cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == cleaner_id).first()
+    if cleaner is None:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    sessions = (
+        db.query(models.CleaningSession)
+        .filter(models.CleaningSession.cleaner_id == cleaner_id)
+        .options(
+            joinedload(models.CleaningSession.session_bookings)
+            .joinedload(models.SessionBooking.booking),
+            joinedload(models.CleaningSession.cleaner),
+        )
+        .order_by(models.CleaningSession.clean_date.desc())
+        .all()
+    )
+    return sessions
 
 # --- Bookings ---
 
