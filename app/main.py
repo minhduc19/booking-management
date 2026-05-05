@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -110,7 +110,62 @@ def delete_all_bookings(db: Session = Depends(get_db)):
     db.commit()
     return {"deleted": deleted}
 
+
+
+@app.get("/bookings/checkout/")
+def bookings_by_checkout(db: Session = Depends(get_db)):
+    bookings = (
+        db.query(models.Booking)
+        .order_by(models.Booking.end_date)
+        .all()
+    )
+
+    # Group by date, then by property
+    grouped: dict[str, dict] = {}
+
+    for booking in bookings:
+        date_key = str(booking.end_date)
+        if date_key not in grouped:
+            grouped[date_key] = {"total": 0, "by_property": {}, "unassigned": []}
+
+        grouped[date_key]["total"] += 1
+
+        entry = {
+            "confirmation_code": booking.confirmation_code,
+            "listing": booking.listing,
+        }
+        if booking.property:
+            address = booking.property.address
+            if address not in grouped[date_key]["by_property"]:
+                grouped[date_key]["by_property"][address] = []
+            grouped[date_key]["by_property"][address].append(entry)
+        else:
+            grouped[date_key]["unassigned"].append(entry)
+
+    return [
+        {
+            "checkout_date": date_key,
+            "total": data["total"],
+            "by_property": [
+                {"property": address, "count": len(entries), "bookings": entries}
+                for address, entries in data["by_property"].items()
+            ],
+            "unassigned": data["unassigned"],
+        }
+        for date_key, data in grouped.items()
+    ]
+
 # --- Bulk CSV Upload ---
+
+LISTING_TO_PROPERTY = {
+    "Spacious cosy room with prime location": "2 Pilrig Street",
+    "Spacious - central - historic view": "2 Pilrig Street",
+    "Unique - spacious - central - with living space": "2 Pilrig Street",
+    "Relaxing - good location - well furnished": "2 Pilrig Street",
+    "Stylish, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
+    "En-suite, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
+    "Cosy, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
+}
 
 COLUMN_MAP = {
     "Confirmation code": "confirmation_code",
@@ -161,6 +216,19 @@ async def bulk_upload_bookings(file: UploadFile = File(...), db: Session = Depen
             data["end_date"] = parse_date(data["end_date"])
             data["booked_date"] = parse_date(data["booked_date"]) if data["booked_date"] else None
 
+            # Resolve property from listing name
+            listing = data.get("listing", "")
+            property_address = LISTING_TO_PROPERTY.get(listing)
+            if property_address:
+                prop = db.query(models.Property).filter(
+                    models.Property.address == property_address
+                ).first()
+                if not prop:
+                    prop = models.Property(address=property_address)
+                    db.add(prop)
+                    db.flush()
+                data["property_id"] = prop.id
+
             # Upsert — update if exists, create if not
             exists = db.query(models.Booking).filter(
                 models.Booking.confirmation_code == data["confirmation_code"]
@@ -190,8 +258,8 @@ async def bulk_upload_bookings(file: UploadFile = File(...), db: Session = Depen
 
 # --- Cleaning Sessions ---
 
-@app.post("/cleaning-sessions/", response_model=schemas.CleanerSessionResponse)
-def create_cleaning_session(session: schemas.CleanerSessionCreate, db: Session = Depends(get_db)):
+@app.post("/cleaning-sessions/", response_model=schemas.CleaningSessionResponse)
+def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session = Depends(get_db)):
     if not 0 <= session.minutes <= 59:
         raise HTTPException(status_code=400, detail="minutes must be between 0 and 59")
     cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == session.cleaner_id).first()
@@ -204,7 +272,7 @@ def create_cleaning_session(session: schemas.CleanerSessionCreate, db: Session =
             raise HTTPException(status_code=404, detail=f"Booking not found: {code}")
 
     data = session.model_dump(exclude={"confirmation_codes"})
-    db_session = models.CleanerSession(**data)
+    db_session = models.CleaningSession(**data)
     db.add(db_session)
     db.flush()  # get db_session.id before committing
 
@@ -216,9 +284,9 @@ def create_cleaning_session(session: schemas.CleanerSessionCreate, db: Session =
     return db_session
 
 
-@app.post("/cleaning-sessions/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleanerSessionResponse)
+@app.post("/cleaning-sessions/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleaningSessionResponse)
 def add_booking_to_session(session_id: int, confirmation_code: str, db: Session = Depends(get_db)):
-    session = db.query(models.CleanerSession).filter(models.CleanerSession.id == session_id).first()
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     if not db.query(models.Booking).filter(models.Booking.confirmation_code == confirmation_code).first():
@@ -235,17 +303,17 @@ def add_booking_to_session(session_id: int, confirmation_code: str, db: Session 
     return session
 
 
-@app.get("/cleaning-sessions/", response_model=list[schemas.CleanerSessionResponse])
+@app.get("/cleaning-sessions/", response_model=list[schemas.CleaningSessionResponse])
 def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(get_db)):
-    query = db.query(models.CleanerSession)
+    query = db.query(models.CleaningSession)
     if cleaner_id:
-        query = query.filter(models.CleanerSession.cleaner_id == cleaner_id)
+        query = query.filter(models.CleaningSession.cleaner_id == cleaner_id)
     return query.all()
 
 
-@app.get("/cleaning-sessions/{session_id}", response_model=schemas.CleanerSessionResponse)
+@app.get("/cleaning-sessions/{session_id}", response_model=schemas.CleaningSessionResponse)
 def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(models.CleanerSession).filter(models.CleanerSession.id == session_id).first()
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
@@ -253,7 +321,7 @@ def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
 
 @app.delete("/cleaning-sessions/{session_id}")
 def delete_cleaning_session(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(models.CleanerSession).filter(models.CleanerSession.id == session_id).first()
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     db.delete(session)
