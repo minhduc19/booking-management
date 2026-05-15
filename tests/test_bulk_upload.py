@@ -2,6 +2,9 @@ import csv
 from pathlib import Path
 
 from app import models
+from app.main import app
+from .database import client, session
+from app import schemas
 
 
 def test_bulk_upload_bookings_from_payload(client, session):
