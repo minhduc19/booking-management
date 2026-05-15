@@ -257,6 +257,7 @@ LISTING_TO_NUMBER = {
     "Stylish, Walking Distance to Centre, Free Parking": "1",
     "En-suite, Walking Distance to Centre, Free Parking": "3",
     "Cosy, Walking Distance to Centre, Free Parking": "2",
+    "Unique oval room -Spacious -Central - Living Space":"5"
 }
 
 LISTING_TO_PROPERTY = {
@@ -267,6 +268,7 @@ LISTING_TO_PROPERTY = {
     "Stylish, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
     "En-suite, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
     "Cosy, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
+    "Unique oval room -Spacious -Central - Living Space": "2 Pilrig Street"
 }
 
 COLUMN_MAP = {
