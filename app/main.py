@@ -220,6 +220,7 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
         entry = {
             "confirmation_code": booking.confirmation_code,
             "listing": booking.listing,
+            "listing_number": booking.listing_number,
             "sessions": unique_sessions,
         }
 
@@ -245,6 +246,16 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
     ]
 
 # --- Bulk CSV Upload ---
+
+LISTING_TO_NUMBER = {
+    "Spacious cosy room with prime location": "4",
+    "Spacious - central - historic view": "3",
+    "Unique - spacious - central - with living space": "1",
+    "Relaxing - good location - well furnished": "2",
+    "Stylish, Walking Distance to Centre, Free Parking": "1",
+    "En-suite, Walking Distance to Centre, Free Parking": "3",
+    "Cosy, Walking Distance to Centre, Free Parking": "2",
+}
 
 LISTING_TO_PROPERTY = {
     "Spacious cosy room with prime location": "2 Pilrig Street",
@@ -308,8 +319,11 @@ async def bulk_upload_bookings(files: list[UploadFile] = File(...), db: Session 
                 data["end_date"] = parse_date(data["end_date"])
                 data["booked_date"] = parse_date(data["booked_date"]) if data["booked_date"] else None
  
-                # Resolve property from listing name
+                # Resolve listing metadata
                 listing = data.get("listing", "")
+                data["listing_number"] = LISTING_TO_NUMBER.get(listing)
+
+                # Resolve property from listing name
                 property_address = LISTING_TO_PROPERTY.get(listing)
                 if property_address:
                     prop = db.query(models.Property).filter(
