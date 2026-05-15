@@ -204,6 +204,8 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
             {
                 "session_id": sb.session.id,
                 "cleaner_name": sb.session.cleaner.name if sb.session.cleaner else None,
+                "hours": sb.session.hours,
+                "minutes": sb.session.minutes,
             }
             for sb in booking.session_bookings
             if sb.session
