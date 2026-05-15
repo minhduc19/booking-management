@@ -49,6 +49,7 @@ class Booking(Base):
     nights = Column(Integer, nullable=False)
     booked_date = Column(Date, nullable=True)
     listing = Column(String, nullable=True)
+    listing_number = Column(String, nullable=True)
     earnings = Column(String, nullable=True)
     property_id = Column(Integer, ForeignKey("properties.id"), nullable=True)
 
