@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -12,6 +12,15 @@ class User(Base):
     hashed_password = Column(String)
 
 
+class Property(Base):
+    __tablename__ = "properties"
+
+    id      = Column(Integer, primary_key=True, index=True)
+    address = Column(String, unique=True, nullable=False)
+
+    bookings = relationship("Booking", back_populates="property")
+
+
 class Cleaner(Base):
     __tablename__ = "cleaners"
 
@@ -19,9 +28,9 @@ class Cleaner(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=True)
     phone = Column(String, nullable=True)
+    rate = Column(Float, nullable=True)  # hourly rate
 
-    bookings = relationship("Booking", back_populates="cleaner")
-    sessions = relationship("CleanerSession", back_populates="cleaner")
+    sessions = relationship("CleaningSession", back_populates="cleaner")
 
 
 class Booking(Base):
@@ -40,14 +49,15 @@ class Booking(Base):
     nights = Column(Integer, nullable=False)
     booked_date = Column(Date, nullable=True)
     listing = Column(String, nullable=True)
+    listing_number = Column(String, nullable=True)
     earnings = Column(String, nullable=True)
-    cleaner_id = Column(Integer, ForeignKey("cleaners.id"), nullable=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), nullable=True)
 
-    cleaner = relationship("Cleaner", back_populates="bookings")
+    property = relationship("Property", back_populates="bookings")
     session_bookings = relationship("SessionBooking", back_populates="booking")
 
 
-class CleanerSession(Base):
+class CleaningSession(Base):
     __tablename__ = "cleaning_sessions"
 
     id         = Column(Integer, primary_key=True, index=True)
@@ -58,7 +68,7 @@ class CleanerSession(Base):
     notes      = Column(String, nullable=True)
 
     cleaner          = relationship("Cleaner", back_populates="sessions")
-    session_bookings = relationship("SessionBooking", back_populates="session")
+    session_bookings = relationship("SessionBooking", back_populates="session", cascade="all, delete-orphan")
 
 
 class SessionBooking(Base):
@@ -69,5 +79,5 @@ class SessionBooking(Base):
     session_id        = Column(Integer, ForeignKey("cleaning_sessions.id"), nullable=False)
     confirmation_code = Column(String, ForeignKey("bookings.confirmation_code"), nullable=False)
 
-    session = relationship("CleanerSession", back_populates="session_bookings")
+    session = relationship("CleaningSession", back_populates="session_bookings")
     booking = relationship("Booking", back_populates="session_bookings")

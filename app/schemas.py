@@ -18,12 +18,22 @@ class UserResponse(UserBase):
     model_config = {"from_attributes": True}
 
 
+# --- Properties ---
+
+class PropertyResponse(BaseModel):
+    id: int
+    address: str
+
+    model_config = {"from_attributes": True}
+
+
 # --- Cleaners ---
 
 class CleanerBase(BaseModel):
     name: str
     email: str | None = None
     phone: str | None = None
+    rate: float | None = None  # hourly rate
 
 
 class CleanerCreate(CleanerBase):
@@ -32,14 +42,10 @@ class CleanerCreate(CleanerBase):
 
 class CleanerResponse(CleanerBase):
     id: int
+    sessions: list["CleaningSessionResponse"] = []
 
     model_config = {"from_attributes": True}
 
-
-class CleanerWithBookings(CleanerResponse):
-    bookings: list["BookingResponse"] = []
-
-    model_config = {"from_attributes": True}
 
 
 # --- Bookings ---
@@ -57,8 +63,9 @@ class BookingBase(BaseModel):
     nights: int
     booked_date: date | None = None
     listing: str | None = None
+    listing_number: str | None = None
     earnings: str | None = None
-    cleaner_id: int | None = None
+    property_id: int | None = None
 
 
 class BookingCreate(BookingBase):
@@ -67,23 +74,26 @@ class BookingCreate(BookingBase):
 
 class BookingResponse(BookingBase):
     id: int
-    cleaner: CleanerResponse | None = None
+    property: PropertyResponse | None = None
 
     model_config = {"from_attributes": True}
 
 
-CleanerWithBookings.model_rebuild()
 
 
 # --- Cleaning Sessions ---
 
-class CleanerSessionCreate(BaseModel):
+class CleaningSessionCreate(BaseModel):
     cleaner_id: int
     clean_date: date
     hours: int = 0
     minutes: int = 0  # 0-59
     notes: str | None = None
     confirmation_codes: list[str] = []  # bookings to attach to this session
+
+
+class CleaningSessionDeleteByCodes(BaseModel):
+    confirmation_codes: list[str]
 
 
 class SessionBookingResponse(BaseModel):
@@ -93,14 +103,16 @@ class SessionBookingResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class CleanerSessionResponse(BaseModel):
+class CleaningSessionResponse(BaseModel):
     id: int
     cleaner_id: int
     clean_date: date
     hours: int
     minutes: int
     notes: str | None = None
-    cleaner: CleanerResponse | None = None
+    #cleaner: "CleanerResponse | None" = None
     session_bookings: list[SessionBookingResponse] = []
-
+ 
     model_config = {"from_attributes": True}
+ 
+CleanerResponse.model_rebuild()

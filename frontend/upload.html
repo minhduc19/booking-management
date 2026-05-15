@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bulk Upload Bookings</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="container" style="max-width:700px; margin-top:40px;">
+
+  <div class="page-header">
+    <h2>Bulk Upload Bookings <small>CSV files only</small></h2>
+  </div>
+
+  <!-- Upload form -->
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <div class="form-group">
+        <label for="csvFiles">Select one or more CSV files</label>
+        <input type="file" id="csvFiles" multiple accept=".csv" />
+        <p class="help-block">Hold Ctrl (or Cmd on Mac) to select multiple files.</p>
+      </div>
+
+      <!-- Selected files list -->
+      <div id="file-list"></div>
+
+      <button class="btn btn-primary" id="upload-btn" disabled>
+        <span class="glyphicon glyphicon-upload"></span> Upload
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div id="progress-wrapper" style="display:none;">
+    <div class="progress">
+      <div class="progress-bar progress-bar-striped active" id="progress-bar" role="progressbar" style="width:100%">
+        Uploading...
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results"></div>
+
+</div>
+
+<script>
+  var API = 'https://booking-management-2-3851.onrender.com';
+
+  var fileInput = document.getElementById('csvFiles');
+  var uploadBtn = document.getElementById('upload-btn');
+  var fileList  = document.getElementById('file-list');
+
+  // Show selected files
+  fileInput.addEventListener('change', function() {
+    var files = fileInput.files;
+    uploadBtn.disabled = files.length === 0;
+
+    if (files.length === 0) {
+      fileList.innerHTML = '';
+      return;
+    }
+
+    var items = '';
+    for (var i = 0; i < files.length; i++) {
+      var size = (files[i].size / 1024).toFixed(1) + ' KB';
+      items += '<li>' + files[i].name + ' <span class="text-muted">(' + size + ')</span></li>';
+    }
+    fileList.innerHTML = '<ul class="list-unstyled" style="margin-bottom:12px">' + items + '</ul>';
+  });
+
+  // Upload
+  uploadBtn.addEventListener('click', function() {
+    var files = fileInput.files;
+    if (files.length === 0) return;
+
+    var formData = new FormData();
+    for (var i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
+    uploadBtn.disabled = true;
+    document.getElementById('progress-wrapper').style.display = 'block';
+    document.getElementById('results').innerHTML = '';
+
+    $.ajax({
+      url: API + '/bookings/bulk-upload/',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function(res) {
+        showResults(res);
+      },
+      error: function(xhr) {
+        var msg = 'Upload failed.';
+        try { msg = JSON.parse(xhr.responseText).detail || msg; } catch(e) {}
+        document.getElementById('results').innerHTML =
+          '<div class="alert alert-danger"><strong>Error:</strong> ' + msg + '</div>';
+      },
+      complete: function() {
+        document.getElementById('progress-wrapper').style.display = 'none';
+        uploadBtn.disabled = false;
+      }
+    });
+  });
+
+  function showResults(res) {
+    var html = '';
+
+    // Summary panel
+    html += '<div class="panel panel-default">';
+    html += '<div class="panel-heading"><strong>Upload Summary</strong></div>';
+    html += '<div class="panel-body">';
+    html += '<div class="row text-center">';
+    html += '<div class="col-xs-4"><div class="text-muted" style="font-size:12px">FILES</div><div style="font-size:28px;">' + res.files_processed + '</div></div>';
+    html += '<div class="col-xs-4"><div class="text-muted" style="font-size:12px">CREATED</div><div style="font-size:28px;color:#5cb85c">' + res.created + '</div></div>';
+    html += '<div class="col-xs-4"><div class="text-muted" style="font-size:12px">UPDATED</div><div style="font-size:28px;color:#f0ad4e">' + res.updated + '</div></div>';
+    html += '</div>';
+    html += '</div></div>';
+
+    // Created codes
+    if (res.created_codes && res.created_codes.length) {
+      html += '<div class="panel panel-success">';
+      html += '<div class="panel-heading"><span class="glyphicon glyphicon-ok"></span> Created (' + res.created_codes.length + ')</div>';
+      html += '<div class="panel-body">';
+      html += res.created_codes.map(function(c) {
+        return '<span class="label label-success" style="margin:2px;display:inline-block">' + c + '</span>';
+      }).join(' ');
+      html += '</div></div>';
+    }
+
+    // Updated codes
+    if (res.updated_codes && res.updated_codes.length) {
+      html += '<div class="panel panel-warning">';
+      html += '<div class="panel-heading"><span class="glyphicon glyphicon-refresh"></span> Updated (' + res.updated_codes.length + ')</div>';
+      html += '<div class="panel-body">';
+      html += res.updated_codes.map(function(c) {
+        return '<span class="label label-warning" style="margin:2px;display:inline-block">' + c + '</span>';
+      }).join(' ');
+      html += '</div></div>';
+    }
+
+    // Errors
+    if (res.errors && res.errors.length) {
+      html += '<div class="panel panel-danger">';
+      html += '<div class="panel-heading"><span class="glyphicon glyphicon-warning-sign"></span> Errors (' + res.errors.length + ')</div>';
+      html += '<table class="table table-condensed" style="margin-bottom:0">';
+      html += '<thead><tr><th>File</th><th>Row</th><th>Error</th></tr></thead><tbody>';
+      res.errors.forEach(function(e) {
+        html += '<tr class="danger"><td>' + (e.file || '-') + '</td><td>' + (e.row || '-') + '</td><td>' + e.error + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    document.getElementById('results').innerHTML = html;
+  }
+</script>
+
+</body>
+</html>
