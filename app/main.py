@@ -75,28 +75,6 @@ async def read_cleaner():
 def read_root():
     return {"message": "Changed to private repository"}
 
-
-# --- Users ---
-
-@app.post("/users/", response_model=schemas.UserResponse)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    hashed_password = user.password  # Replace with bcrypt in production
-    db_user = models.User(email=user.email, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-@app.get("/users/{user_id}", response_model=schemas.UserResponse)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
-
 # --- Cleaners ---
 
 @app.post("/cleaners/", response_model=schemas.CleanerResponse)
