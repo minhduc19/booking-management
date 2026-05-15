@@ -419,6 +419,40 @@ def add_booking_to_session(session_id: int, confirmation_code: str, db: Session 
     return session
 
 
+@app.delete("/cleaning-sessions/")
+def delete_cleaning_sessions_by_confirmation_codes(
+    payload: schemas.CleaningSessionDeleteByCodes,
+    db: Session = Depends(get_db)
+):
+    confirmation_codes = [code for code in payload.confirmation_codes if code]
+    if not confirmation_codes:
+        raise HTTPException(status_code=400, detail="confirmation_codes is required")
+
+    session_ids = [
+        session_id
+        for (session_id,) in db.query(models.SessionBooking.session_id)
+        .filter(models.SessionBooking.confirmation_code.in_(confirmation_codes))
+        .distinct()
+        .all()
+    ]
+
+    if not session_ids:
+        return {"deleted_sessions": 0, "deleted_session_ids": [], "matched_confirmation_codes": confirmation_codes}
+
+    deleted = (
+        db.query(models.CleaningSession)
+        .filter(models.CleaningSession.id.in_(session_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+
+    return {
+        "deleted_sessions": deleted,
+        "deleted_session_ids": session_ids,
+        "matched_confirmation_codes": confirmation_codes,
+    }
+
+
 @app.get("/cleaning-sessions/", response_model=list[schemas.CleaningSessionResponse])
 def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(get_db)):
     query = db.query(models.CleaningSession)

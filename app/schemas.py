@@ -92,6 +92,10 @@ class CleaningSessionCreate(BaseModel):
     confirmation_codes: list[str] = []  # bookings to attach to this session
 
 
+class CleaningSessionDeleteByCodes(BaseModel):
+    confirmation_codes: list[str]
+
+
 class SessionBookingResponse(BaseModel):
     id: int
     confirmation_code: str
