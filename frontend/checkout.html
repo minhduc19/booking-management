@@ -85,17 +85,16 @@
             <th>Total (date)</th>
             <th>Property</th>
             <th>Property Count</th>
-            <th>Confirmation Code</th>
-            <th>Listing</th>
             <th>Listing #</th>
+            <th>Listing</th>
+            <th>Confirmation Code</th>
             <th>Sessions</th>
             <th>Cleaner</th>
             <th>Action</th>
-            <th>Delete</th>
           </tr>
         </thead>
         <tbody id="checkout-body">
-          <tr><td colspan="11" class="text-center text-muted">Loading...</td></tr>
+          <tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -168,17 +167,6 @@
   }
 
 
-  function deleteButtonHtml(group) {
-    var property = group && group.property;
-    var checkoutDate = group && group.checkout_date;
-    var bookingCodes = group && group.confirmation_codes;
-    if (!property || !checkoutDate || !bookingCodes || !bookingCodes.length) {
-      return '<button type="button" class="btn btn-default btn-xs" disabled>Delete</button>';
-    }
-    var key = groupKey(property, checkoutDate);
-    return '<button type="button" class="btn btn-danger btn-xs delete-session-btn" data-group-key="' + key + '">Delete</button>';
-  }
-
   function loadCleaners() {
     return $.getJSON(API + '/cleaners/')
       .done(function(data) {
@@ -195,7 +183,7 @@
 
   function loadCheckout() {
     var tbody = document.getElementById('checkout-body');
-    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>';
     saveGroups = {};
 
     $.getJSON(API + '/bookings/checkout/')
@@ -228,17 +216,12 @@
                 '<td>' + escapeHtml(day.total) + '</td>' +
                 '<td>' + escapeHtml(group.property) + '</td>' +
                 '<td>' + escapeHtml(group.count) + '</td>' +
-                '<td>' + confirmationCodes.map(function(code) { return '<code>' + escapeHtml(code) + '</code>'; }).join('<br>') + '</td>' +
-                '<td>' + listings + '</td>' +
                 '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
+                '<td>' + listings + '</td>' +
+                '<td>' + confirmationCodes.map(function(code) { return '<code>' + escapeHtml(code) + '</code>'; }).join('<br>') + '</td>' +
                 '<td>' + sessionText(sessions) + '</td>' +
                 '<td>' + cleanerSelectHtml(group.property, day.checkout_date) + '</td>' +
                 '<td>' + actionButtonHtml({
-                  property: group.property,
-                  confirmation_codes: confirmationCodes,
-                  checkout_date: day.checkout_date
-                }) + '</td>' +
-                '<td>' + deleteButtonHtml({
                   property: group.property,
                   confirmation_codes: confirmationCodes,
                   checkout_date: day.checkout_date
@@ -254,17 +237,12 @@
                 '<td>' + escapeHtml(day.total) + '</td>' +
                 '<td><span class="label label-warning">Unassigned property</span></td>' +
                 '<td>-</td>' +
-                '<td><code>' + escapeHtml(booking.confirmation_code) + '</code></td>' +
-                '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
+                '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
+                '<td><code>' + escapeHtml(booking.confirmation_code) + '</code></td>' +
                 '<td>' + sessionText(booking.sessions) + '</td>' +
                 '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date) + '</td>' +
                 '<td>' + actionButtonHtml({
-                  property: 'unassigned:' + booking.confirmation_code,
-                  confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
-                  checkout_date: day.checkout_date
-                }) + '</td>' +
-                '<td>' + deleteButtonHtml({
                   property: 'unassigned:' + booking.confirmation_code,
                   confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
                   checkout_date: day.checkout_date
@@ -275,7 +253,7 @@
         });
 
         if (rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No checkout data found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No checkout data found.</td></tr>';
           return;
         }
 
@@ -287,7 +265,7 @@
           message += ' (HTTP ' + xhr.status + ')';
         }
         showError(message);
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Failed to load data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Failed to load data.</td></tr>';
       });
   }
 
