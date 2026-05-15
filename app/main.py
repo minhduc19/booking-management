@@ -1,5 +1,7 @@
 import csv
 import io
+import os
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -53,6 +55,43 @@ def download_database_file():
     )
 
 
+
+
+@app.post("/database/upload")
+async def upload_database_file(file: UploadFile = File(...)):
+    db_path = _resolve_sqlite_db_path(settings.database_url)
+
+    if not file.filename or not file.filename.endswith(".db"):
+        raise HTTPException(status_code=400, detail="Only .db files are supported")
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    suffix = db_path.suffix if db_path.suffix else ".db"
+    temp_file = tempfile.NamedTemporaryFile(delete=False, dir=db_path.parent, suffix=suffix)
+    temp_path = Path(temp_file.name)
+
+    try:
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+        temp_file.write(contents)
+        temp_file.close()
+
+        engine.dispose()
+        os.replace(temp_path, db_path)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to replace database file") from exc
+    finally:
+        await file.close()
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+
+    return {"message": f"Database replaced successfully with {db_path.name}"}
+
+
 @app.get("/index-checkout", response_class=HTMLResponse)
 async def read_index():
     with open("frontend/checkout.html", "r", encoding="utf-8") as f:
@@ -74,28 +113,6 @@ async def read_cleaner():
 @app.get("/")
 def read_root():
     return {"message": "Changed to private repository"}
-
-
-# --- Users ---
-
-@app.post("/users/", response_model=schemas.UserResponse)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    hashed_password = user.password  # Replace with bcrypt in production
-    db_user = models.User(email=user.email, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-@app.get("/users/{user_id}", response_model=schemas.UserResponse)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
 
 # --- Cleaners ---
 
