@@ -5,172 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Checkout Schedule</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0f0f0f;
-      --surface: #181818;
-      --border: #2a2a2a;
-      --accent: #c8f04a;
-      --accent-dim: #8aaa2a;
-      --text: #ffffff;
-      --muted: #999;
-      --danger: #ff6b6b;
-      --mono: 'DM Mono', monospace;
-      --serif: 'Fraunces', serif;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--mono);
-      min-height: 100vh;
-      padding: 48px 32px;
-    }
-
-    header {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      margin-bottom: 48px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 24px;
-    }
-
-    h1 { font-family: var(--serif); font-weight: 300; font-size: 2.8rem; letter-spacing: -0.02em; line-height: 1; }
-    h1 em { font-style: italic; color: var(--accent); }
-    .meta { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; }
-
-    .controls { display: flex; gap: 12px; margin-bottom: 36px; align-items: center; }
-    .controls input {
-      background: var(--surface); border: 1px solid var(--border); color: var(--text);
-      font-family: var(--mono); font-size: 0.8rem; padding: 8px 14px; outline: none; transition: border-color 0.2s;
-    }
-    .controls input:focus { border-color: var(--accent); }
-    .controls label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
-
-    #state { font-size: 0.8rem; color: var(--muted); padding: 80px 0; text-align: center; letter-spacing: 0.08em; }
-    #state.error { color: var(--danger); }
-
-    .timeline { display: flex; flex-direction: column; gap: 2px; }
-
-    .day-block { border: 1px solid var(--border); overflow: hidden; animation: slideIn 0.3s ease both; }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .day-header {
-      display: grid; grid-template-columns: 220px 1fr auto; align-items: center; gap: 24px;
-      padding: 16px 24px; background: var(--surface); cursor: pointer; user-select: none; transition: background 0.15s;
-    }
-    .day-header:hover { background: #202020; }
-    .day-header.today { border-left: 3px solid var(--accent); }
-
-    .date-label { font-family: var(--serif); font-weight: 600; font-size: 1.1rem; letter-spacing: -0.01em; }
-    .date-sub { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
-
-    .property-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-    .pill { font-size: 0.65rem; padding: 3px 10px; border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
-
-    .total-badge { font-size: 0.7rem; background: var(--accent); color: #0f0f0f; padding: 4px 10px; font-weight: 500; white-space: nowrap; }
-
-    .day-body { display: none; padding: 0 24px 20px; background: var(--bg); }
-    .day-body.open { display: block; }
-
-    .property-section { margin-top: 20px; }
-
-    .property-title {
-      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent-dim);
-      margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
-    }
-    .property-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-    .property-count { font-size: 0.65rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 2px 8px; }
-
-    .edit-btn {
-      font-family: var(--mono); font-size: 0.6rem; padding: 3px 10px; background: transparent;
-      border: 1px solid var(--border); color: var(--muted); cursor: pointer;
-      text-transform: uppercase; letter-spacing: 0.1em; transition: all 0.15s;
-    }
-    .edit-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-    .cleaners-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-    .cleaner-tag { font-size: 0.65rem; padding: 3px 10px; background: #1e2a0e; border: 1px solid var(--accent-dim); color: var(--accent); letter-spacing: 0.06em; }
-    .no-cleaner { font-size: 0.65rem; color: var(--danger); letter-spacing: 0.06em; }
-
-    .delete-session-btn {
-      font-family: var(--mono);
-      font-size: 0.55rem;
-      padding: 2px 7px;
-      background: transparent;
-      border: 1px solid #3a2020;
-      color: var(--danger);
-      cursor: pointer;
-      letter-spacing: 0.08em;
-      margin-left: 6px;
-      vertical-align: middle;
-      transition: all 0.15s;
-    }
-    .delete-session-btn:hover { background: #3a2020; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
-    th { text-align: left; padding: 6px 12px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 400; }
-    td { padding: 8px 12px; border-bottom: 1px solid #1a1a1a; color: #e0e0e0; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #151515; }
-    .code { color: var(--accent); letter-spacing: 0.05em; }
-    .listing-cell { color: #aaa; font-size: 0.68rem; }
-
-    .unassigned-section { margin-top: 16px; padding: 10px 14px; border: 1px dashed #3a2020; background: #1a1010; }
-    .unassigned-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--danger); margin-bottom: 6px; }
-
-    /* Modal */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-
-    .modal { background: var(--surface); border: 1px solid var(--border); padding: 32px; width: 480px; max-width: 95vw; animation: slideIn 0.2s ease; }
-
-    .modal h2 { font-family: var(--serif); font-weight: 300; font-size: 1.4rem; margin-bottom: 6px; }
-    .modal-sub { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 24px; }
-
-    .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-    .form-row label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-    .form-row select,
-    .form-row input[type="text"],
-    .form-row input[type="number"] {
-      background: var(--bg); border: 1px solid var(--border); color: var(--text);
-      font-family: var(--mono); font-size: 0.8rem; padding: 9px 12px; outline: none; width: 100%; transition: border-color 0.2s;
-    }
-    .form-row select:focus, .form-row input:focus { border-color: var(--accent); }
-    .form-row select option { background: #1a1a1a; }
-
-    .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-
-    .modal-bookings { padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); font-size: 0.7rem; color: var(--muted); max-height: 80px; overflow-y: auto; }
-    .modal-bookings span { display: inline-block; margin-right: 10px; color: var(--accent); }
-
-    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
-    .btn { font-family: var(--mono); font-size: 0.72rem; padding: 9px 20px; border: 1px solid var(--border); cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.15s; }
-    .btn-cancel { background: transparent; color: var(--muted); }
-    .btn-cancel:hover { border-color: var(--muted); color: var(--text); }
-    .btn-save { background: var(--accent); color: #0f0f0f; border-color: var(--accent); font-weight: 500; }
-    .btn-save:hover { background: #d9ff55; }
-    .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .modal-feedback { font-size: 0.7rem; margin-top: 12px; text-align: right; min-height: 18px; }
-    .modal-feedback.success { color: var(--accent); }
-    .modal-feedback.error { color: var(--danger); }
-  </style>
 </head>
 <body>
 
 <header>
   <div>
     <h1>Checkout <em>Schedule</em></h1>
-    <p class="meta" style="margin-top:8px">All upcoming &amp; past checkouts by property</p>
+    <p class="meta">All upcoming &amp; past checkouts by property</p>
   </div>
   <div class="meta" id="last-updated"></div>
 </header>
@@ -179,7 +20,7 @@
   <label for="filter-date">Filter date</label>
   <input type="date" id="filter-date" />
   <label for="filter-property">Property</label>
-  <input type="text" id="filter-property" placeholder="e.g. Pilrig" style="width:180px" />
+  <input type="text" id="filter-property" placeholder="e.g. Pilrig" />
 </div>
 
 <div id="state">Loading checkouts...</div>
@@ -333,7 +174,7 @@
                   '<button class="delete-session-btn" data-session-id="' + s.session_id + '">&#x2715;</button>' +
                   '</span>';
               }).join(' ')
-            : '<span style="color:var(--danger);font-size:0.65rem">unassigned</span>';
+            : '<span>unassigned</span>';
           return '<tr>' +
             '<td class="code">' + b.confirmation_code + '</td>' +
             '<td class="listing-cell">' + (b.listing || '-') + '</td>' +
@@ -362,7 +203,7 @@
         bodyHTML +=
           '<div class="unassigned-section">' +
             '<div class="unassigned-label">&#x26A0; ' + day.unassigned.length + ' booking' + (day.unassigned.length !== 1 ? 's' : '') + ' with no property assigned</div>' +
-            day.unassigned.map(function(b) { return '<span style="font-size:0.7rem;color:#aaa;margin-right:12px">' + b.confirmation_code + '</span>'; }).join('') +
+            day.unassigned.map(function(b) { return '<span>' + b.confirmation_code + '</span>'; }).join('') +
           '</div>';
       }
 
