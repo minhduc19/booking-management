@@ -297,14 +297,14 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
 # --- Bulk CSV Upload ---
 
 LISTING_TO_NUMBER = {
-    "Spacious cosy room with prime location": "4",
-    "Spacious - central - historic view": "3",
-    "Unique - spacious - central - with living space": "1",
-    "Relaxing - good location - well furnished": "2",
+    "Spacious cosy room with prime location": "4 - 1419",
+    "Spacious - central - historic view": "3 - 1951",
+    "Unique - spacious - central - with living space": "1 - 1219",
+    "Relaxing - good location - well furnished": "2 - 1319",
     "Stylish, Walking Distance to Centre, Free Parking": "1",
     "En-suite, Walking Distance to Centre, Free Parking": "3",
     "Cosy, Walking Distance to Centre, Free Parking": "2",
-    "Unique oval room -Spacious -Central - Living Space":"5"
+    "Unique oval room -Spacious -Central - Living Space":"5 - 1519"
 }
 
 LISTING_TO_PROPERTY = {

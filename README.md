@@ -1,3 +1,7 @@
+- Create endpoint to show bookings since 10 days ago
+- Create table for listing details rather than the current hard coded mapping
+- Endpoint to edit cleaning session
+- Endpoint to edit cleaner
 # FastapiBoierPlate
 
 For action to works, environment secrets need to be set up:
