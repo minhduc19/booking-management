@@ -1,11 +1,13 @@
 import csv
 import io
 from datetime import date, datetime
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from app import models, schemas
+from app.config import settings
 from app.database import engine, get_db
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -22,6 +24,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+def _resolve_sqlite_db_path(database_url: str) -> Path:
+    sqlite_prefix = "sqlite:///"
+    if not database_url.startswith(sqlite_prefix):
+        raise HTTPException(status_code=400, detail="Database is not configured for SQLite")
+
+    raw_path = database_url.removeprefix(sqlite_prefix)
+    db_path = Path(raw_path)
+    if not db_path.is_absolute():
+        db_path = Path.cwd() / db_path
+    return db_path.resolve()
+
+
+@app.get("/database/download")
+def download_database_file():
+    db_path = _resolve_sqlite_db_path(settings.database_url)
+
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="Database file not found")
+
+    return FileResponse(
+        path=db_path,
+        filename=db_path.name,
+        media_type="application/x-sqlite3",
+    )
+
 
 @app.get("/index-checkout", response_class=HTMLResponse)
 async def read_index():
