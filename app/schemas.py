@@ -63,6 +63,7 @@ class BookingBase(BaseModel):
     nights: int
     booked_date: date | None = None
     listing: str | None = None
+    listing_number: str | None = None
     earnings: str | None = None
     property_id: int | None = None
 
