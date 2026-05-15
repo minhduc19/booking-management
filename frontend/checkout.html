@@ -89,6 +89,7 @@
 <script>
   var API = 'https://booking-management-2-3851.onrender.com';
   var cleaners = [];
+  var saveGroups = {};
 
   function escapeHtml(text) {
     return String(text == null ? '' : text)
@@ -116,13 +117,13 @@
     document.getElementById('alerts').innerHTML = '';
   }
 
-  function bookingKey(bookingCode, checkoutDate) {
-    return escapeHtml((bookingCode || '') + '|' + (checkoutDate || ''));
+  function groupKey(property, checkoutDate) {
+    return escapeHtml((property || '') + '|' + (checkoutDate || ''));
   }
 
-  function cleanerSelectHtml(bookingCode, checkoutDate) {
-    if (!bookingCode || !checkoutDate) {
-      return '<span class="text-muted">Missing booking data</span>';
+  function cleanerSelectHtml(property, checkoutDate) {
+    if (!property || !checkoutDate) {
+      return '<span class="text-muted">Missing group data</span>';
     }
     if (!cleaners.length) {
       return '<span class="text-muted">No cleaners found</span>';
@@ -131,16 +132,23 @@
       return '<option value="' + escapeHtml(cleaner.id) + '">' + escapeHtml(cleaner.name) + '</option>';
     }).join('');
 
-    return '<select class="form-control input-sm cleaner-select" data-booking-key="' + bookingKey(bookingCode, checkoutDate) + '">' + options + '</select>';
+    return '<select class="form-control input-sm cleaner-select" data-group-key="' + groupKey(property, checkoutDate) + '">' + options + '</select>';
   }
 
-  function actionButtonHtml(booking) {
-    var bookingCode = booking && booking.confirmation_code;
-    var checkoutDate = booking && booking.checkout_date;
-    if (!bookingCode || !checkoutDate) {
+  function actionButtonHtml(group) {
+    var property = group && group.property;
+    var checkoutDate = group && group.checkout_date;
+    var bookingCodes = group && group.confirmation_codes;
+    if (!property || !checkoutDate || !bookingCodes || !bookingCodes.length) {
       return '<button type="button" class="btn btn-default btn-xs" disabled>Save</button>';
     }
-    return '<button type="button" class="btn btn-success btn-xs save-session-btn" data-booking-code="' + escapeHtml(bookingCode) + '" data-checkout-date="' + escapeHtml(checkoutDate) + '">Save</button>';
+    var key = groupKey(property, checkoutDate);
+    saveGroups[key] = {
+      property: property,
+      checkout_date: checkoutDate,
+      confirmation_codes: bookingCodes.slice()
+    };
+    return '<button type="button" class="btn btn-success btn-xs save-session-btn" data-group-key="' + key + '">Save</button>';
   }
 
   function loadCleaners() {
@@ -160,6 +168,7 @@
   function loadCheckout() {
     var tbody = document.getElementById('checkout-body');
     tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>';
+    saveGroups = {};
 
     $.getJSON(API + '/bookings/checkout/')
       .done(function(data) {
@@ -170,24 +179,38 @@
 
         data.forEach(function(day) {
           (day.by_property || []).forEach(function(group) {
-            (group.bookings || []).forEach(function(booking) {
-              rows.push(
-                '<tr>' +
-                  '<td>' + escapeHtml(day.checkout_date) + '</td>' +
-                  '<td>' + escapeHtml(day.total) + '</td>' +
-                  '<td>' + escapeHtml(group.property) + '</td>' +
-                  '<td>' + escapeHtml(group.count) + '</td>' +
-                  '<td><code>' + escapeHtml(booking.confirmation_code) + '</code></td>' +
-                  '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
-                  '<td>' + sessionText(booking.sessions) + '</td>' +
-                  '<td>' + cleanerSelectHtml(booking.confirmation_code, day.checkout_date) + '</td>' +
-                  '<td>' + actionButtonHtml({
-                    confirmation_code: booking.confirmation_code,
-                    checkout_date: day.checkout_date
-                  }) + '</td>' +
-                '</tr>'
-              );
+            var bookings = group.bookings || [];
+            var confirmationCodes = bookings
+              .map(function(booking) { return booking.confirmation_code; })
+              .filter(function(code) { return !!code; })
+              .filter(function(code, index, arr) { return arr.indexOf(code) === index; });
+            var listings = bookings
+              .map(function(booking) { return booking.listing || '-'; })
+              .join('<br>');
+            var sessions = [];
+            bookings.forEach(function(booking) {
+              if (booking.sessions && booking.sessions.length) {
+                sessions = sessions.concat(booking.sessions);
+              }
             });
+
+            rows.push(
+              '<tr>' +
+                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
+                '<td>' + escapeHtml(day.total) + '</td>' +
+                '<td>' + escapeHtml(group.property) + '</td>' +
+                '<td>' + escapeHtml(group.count) + '</td>' +
+                '<td>' + confirmationCodes.map(function(code) { return '<code>' + escapeHtml(code) + '</code>'; }).join('<br>') + '</td>' +
+                '<td>' + listings + '</td>' +
+                '<td>' + sessionText(sessions) + '</td>' +
+                '<td>' + cleanerSelectHtml(group.property, day.checkout_date) + '</td>' +
+                '<td>' + actionButtonHtml({
+                  property: group.property,
+                  confirmation_codes: confirmationCodes,
+                  checkout_date: day.checkout_date
+                }) + '</td>' +
+              '</tr>'
+            );
           });
 
           (day.unassigned || []).forEach(function(booking) {
@@ -200,9 +223,10 @@
                 '<td><code>' + escapeHtml(booking.confirmation_code) + '</code></td>' +
                 '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + sessionText(booking.sessions) + '</td>' +
-                '<td>' + cleanerSelectHtml(booking.confirmation_code, day.checkout_date) + '</td>' +
+                '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date) + '</td>' +
                 '<td>' + actionButtonHtml({
-                  confirmation_code: booking.confirmation_code,
+                  property: 'unassigned:' + booking.confirmation_code,
+                  confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
                   checkout_date: day.checkout_date
                 }) + '</td>' +
               '</tr>'
@@ -244,11 +268,11 @@
     };
   }
 
-  function saveCleaningSession(booking, cleanerId, buttonEl) {
-    var bookingCode = booking && booking.confirmation_code;
-    var cleanDate = booking && booking.checkout_date;
-    if (!bookingCode || !cleanDate) {
-      showError('Missing booking confirmation code or checkout date.');
+  function saveCleaningSession(group, cleanerId, buttonEl) {
+    var confirmationCodes = group && group.confirmation_codes;
+    var cleanDate = group && group.checkout_date;
+    if (!confirmationCodes || !confirmationCodes.length || !cleanDate) {
+      showError('Missing booking confirmation codes or checkout date.');
       return;
     }
 
@@ -267,7 +291,7 @@
         hours: details.hours,
         minutes: details.minutes,
         notes: details.notes,
-        confirmation_codes: [bookingCode]
+        confirmation_codes: confirmationCodes
       })
     })
       .done(function() {
@@ -288,18 +312,18 @@
   document.getElementById('checkout-body').addEventListener('click', function(event) {
     if (!event.target.classList.contains('save-session-btn')) return;
     var button = event.target;
-    var bookingCode = button.getAttribute('data-booking-code');
-    var checkoutDate = button.getAttribute('data-checkout-date');
-    var bookingKeyValue = bookingKey(bookingCode, checkoutDate);
-    var select = document.querySelector('.cleaner-select[data-booking-key="' + bookingKeyValue + '"]');
+    var groupKeyValue = button.getAttribute('data-group-key');
+    var group = saveGroups[groupKeyValue];
+    if (!group) {
+      showError('Could not find booking group for this row. Please reload and try again.');
+      return;
+    }
+    var select = document.querySelector('.cleaner-select[data-group-key="' + groupKeyValue + '"]');
     if (!select || !select.value) {
       showError('Please select a cleaner.');
       return;
     }
-    saveCleaningSession({
-      confirmation_code: bookingCode,
-      checkout_date: checkoutDate
-    }, select.value, button);
+    saveCleaningSession(group, select.value, button);
   });
 
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
