@@ -237,6 +237,7 @@
                 sessions = sessions.concat(booking.sessions);
               }
             });
+            sessions = uniqueSessionsById(sessions);
 
             rows.push(
               '<tr>' +
