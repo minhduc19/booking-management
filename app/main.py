@@ -220,6 +220,7 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
         entry = {
             "confirmation_code": booking.confirmation_code,
             "listing": booking.listing,
+            "listing_number": booking.listing_number,
             "sessions": unique_sessions,
         }
 
