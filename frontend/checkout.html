@@ -171,8 +171,12 @@
     var property = group && group.property;
     var checkoutDate = group && group.checkout_date;
     var bookingCodes = group && group.confirmation_codes;
+    var sessions = group && group.sessions;
     if (!property || !checkoutDate || !bookingCodes || !bookingCodes.length) {
       return '<button type="button" class="btn btn-default btn-xs" disabled>Delete</button>';
+    }
+    if (!sessions || !sessions.length) {
+      return '<button type="button" class="btn btn-default btn-xs" disabled title="No cleaning session to delete">Delete</button>';
     }
     var key = groupKey(property, checkoutDate);
     return '<button type="button" class="btn btn-danger btn-xs delete-session-btn" data-group-key="' + key + '">Delete</button>';
@@ -240,7 +244,8 @@
                 '<td>' + deleteButtonHtml({
                   property: group.property,
                   confirmation_codes: confirmationCodes,
-                  checkout_date: day.checkout_date
+                  checkout_date: day.checkout_date,
+                  sessions: sessions
                 }) + '</td>' +
               '</tr>'
             );
@@ -266,7 +271,8 @@
                 '<td>' + deleteButtonHtml({
                   property: 'unassigned:' + booking.confirmation_code,
                   confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
-                  checkout_date: day.checkout_date
+                  checkout_date: day.checkout_date,
+                  sessions: booking.sessions || []
                 }) + '</td>' +
               '</tr>'
             );
