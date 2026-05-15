@@ -109,15 +109,18 @@
     return '<select class="form-control input-sm cleaner-select" data-booking-id="' + escapeHtml(bookingId) + '">' + options + '</select>';
   }
 
-  function actionButtonHtml(bookingId) {
+  function actionButtonHtml(booking) {
+    var bookingId = booking && (booking.booking_id || booking.id);
+    var bookingCode = booking && booking.confirmation_code;
+    var checkoutDate = booking && booking.checkout_date;
     if (!bookingId) {
       return '<button type="button" class="btn btn-default btn-xs" disabled>Save</button>';
     }
-    return '<button type="button" class="btn btn-success btn-xs save-session-btn" data-booking-id="' + escapeHtml(bookingId) + '">Save</button>';
+    return '<button type="button" class="btn btn-success btn-xs save-session-btn" data-booking-id="' + escapeHtml(bookingId) + '" data-booking-code="' + escapeHtml(bookingCode || '') + '" data-checkout-date="' + escapeHtml(checkoutDate || '') + '">Save</button>';
   }
 
   function loadCleaners() {
-    return $.getJSON(API + '/cleaners')
+    return $.getJSON(API + '/cleaners/')
       .done(function(data) {
         cleaners = (data || []).map(function(item) {
           return {
@@ -155,7 +158,11 @@
                   '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                   '<td>' + sessionText(booking.sessions) + '</td>' +
                   '<td>' + cleanerSelectHtml(bookingId) + '</td>' +
-                  '<td>' + actionButtonHtml(bookingId) + '</td>' +
+                  '<td>' + actionButtonHtml({
+                    booking_id: bookingId,
+                    confirmation_code: booking.confirmation_code,
+                    checkout_date: day.checkout_date
+                  }) + '</td>' +
                 '</tr>'
               );
             });
@@ -173,7 +180,11 @@
                 '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + sessionText(booking.sessions) + '</td>' +
                 '<td>' + cleanerSelectHtml(bookingId) + '</td>' +
-                '<td>' + actionButtonHtml(bookingId) + '</td>' +
+                '<td>' + actionButtonHtml({
+                  booking_id: bookingId,
+                  confirmation_code: booking.confirmation_code,
+                  checkout_date: day.checkout_date
+                }) + '</td>' +
               '</tr>'
             );
           });
@@ -196,17 +207,25 @@
       });
   }
 
-  function saveCleaningSession(bookingId, cleanerId, buttonEl) {
+  function saveCleaningSession(booking, cleanerId, buttonEl) {
+    var bookingCode = booking && booking.confirmation_code;
+    var cleanDate = booking && booking.checkout_date;
+    if (!bookingCode || !cleanDate) {
+      showError('Missing booking confirmation code or checkout date.');
+      return;
+    }
+
     buttonEl.disabled = true;
     buttonEl.textContent = 'Saving...';
 
     $.ajax({
-      url: API + '/sessions',
+      url: API + '/cleaning-sessions/',
       method: 'POST',
       contentType: 'application/json',
       data: JSON.stringify({
-        booking_id: bookingId,
-        cleaner_id: cleanerId
+        cleaner_id: Number(cleanerId),
+        clean_date: cleanDate,
+        confirmation_codes: [bookingCode]
       })
     })
       .done(function() {
@@ -228,12 +247,18 @@
     if (!event.target.classList.contains('save-session-btn')) return;
     var button = event.target;
     var bookingId = button.getAttribute('data-booking-id');
+    var bookingCode = button.getAttribute('data-booking-code');
+    var checkoutDate = button.getAttribute('data-checkout-date');
     var select = document.querySelector('.cleaner-select[data-booking-id="' + bookingId + '"]');
     if (!select || !select.value) {
       showError('Please select a cleaner.');
       return;
     }
-    saveCleaningSession(bookingId, select.value, button);
+    saveCleaningSession({
+      booking_id: bookingId,
+      confirmation_code: bookingCode,
+      checkout_date: checkoutDate
+    }, select.value, button);
   });
 
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
