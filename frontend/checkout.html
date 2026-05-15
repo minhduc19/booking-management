@@ -136,6 +136,16 @@
     }).join('');
   }
 
+  function uniqueSessionsById(sessions) {
+    var seen = {};
+    return (sessions || []).filter(function(session) {
+      if (!session || session.session_id == null) return false;
+      if (seen[session.session_id]) return false;
+      seen[session.session_id] = true;
+      return true;
+    });
+  }
+
   function showError(message) {
     document.getElementById('alerts').innerHTML =
       '<div class="alert alert-danger"><strong>Error:</strong> ' + escapeHtml(message) + '</div>';
@@ -268,6 +278,7 @@
           });
 
           (day.unassigned || []).forEach(function(booking) {
+            var unassignedSessions = uniqueSessionsById(booking.sessions || []);
             rows.push(
               '<tr class="warning">' +
                 '<td>' + escapeHtml(day.checkout_date) + '</td>' +
@@ -277,8 +288,8 @@
                 '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
                 '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
-                '<td>' + sessionText(booking.sessions) + '</td>' +
-                '<td>' + sessionTimeText(booking.sessions) + '</td>' +
+                '<td>' + sessionText(unassignedSessions) + '</td>' +
+                '<td>' + sessionTimeText(unassignedSessions) + '</td>' +
                 '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date) + '</td>' +
                 '<td>' + actionButtonHtml({
                   property: 'unassigned:' + booking.confirmation_code,
@@ -289,7 +300,7 @@
                   property: 'unassigned:' + booking.confirmation_code,
                   confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
                   checkout_date: day.checkout_date,
-                  sessions: booking.sessions || []
+                  sessions: unassignedSessions
                 }) + '</td>' +
               '</tr>'
             );
