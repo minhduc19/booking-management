@@ -220,6 +220,7 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
         entry = {
             "confirmation_code": booking.confirmation_code,
             "listing": booking.listing,
+            "listing_number": booking.listing_number,
             "sessions": unique_sessions,
         }
 
@@ -245,6 +246,16 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
     ]
 
 # --- Bulk CSV Upload ---
+
+LISTING_TO_NUMBER = {
+    "Spacious cosy room with prime location": "4",
+    "Spacious - central - historic view": "3",
+    "Unique - spacious - central - with living space": "1",
+    "Relaxing - good location - well furnished": "2",
+    "Stylish, Walking Distance to Centre, Free Parking": "1",
+    "En-suite, Walking Distance to Centre, Free Parking": "3",
+    "Cosy, Walking Distance to Centre, Free Parking": "2",
+}
 
 LISTING_TO_PROPERTY = {
     "Spacious cosy room with prime location": "2 Pilrig Street",
@@ -308,8 +319,11 @@ async def bulk_upload_bookings(files: list[UploadFile] = File(...), db: Session 
                 data["end_date"] = parse_date(data["end_date"])
                 data["booked_date"] = parse_date(data["booked_date"]) if data["booked_date"] else None
  
-                # Resolve property from listing name
+                # Resolve listing metadata
                 listing = data.get("listing", "")
+                data["listing_number"] = LISTING_TO_NUMBER.get(listing)
+
+                # Resolve property from listing name
                 property_address = LISTING_TO_PROPERTY.get(listing)
                 if property_address:
                     prop = db.query(models.Property).filter(
@@ -403,6 +417,40 @@ def add_booking_to_session(session_id: int, confirmation_code: str, db: Session 
     db.commit()
     db.refresh(session)
     return session
+
+
+@app.delete("/cleaning-sessions/")
+def delete_cleaning_sessions_by_confirmation_codes(
+    payload: schemas.CleaningSessionDeleteByCodes,
+    db: Session = Depends(get_db)
+):
+    confirmation_codes = [code for code in payload.confirmation_codes if code]
+    if not confirmation_codes:
+        raise HTTPException(status_code=400, detail="confirmation_codes is required")
+
+    session_ids = [
+        session_id
+        for (session_id,) in db.query(models.SessionBooking.session_id)
+        .filter(models.SessionBooking.confirmation_code.in_(confirmation_codes))
+        .distinct()
+        .all()
+    ]
+
+    if not session_ids:
+        return {"deleted_sessions": 0, "deleted_session_ids": [], "matched_confirmation_codes": confirmation_codes}
+
+    deleted = (
+        db.query(models.CleaningSession)
+        .filter(models.CleaningSession.id.in_(session_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+
+    return {
+        "deleted_sessions": deleted,
+        "deleted_session_ids": session_ids,
+        "matched_confirmation_codes": confirmation_codes,
+    }
 
 
 @app.get("/cleaning-sessions/", response_model=list[schemas.CleaningSessionResponse])
