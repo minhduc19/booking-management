@@ -53,10 +53,12 @@
             <th>Confirmation Code</th>
             <th>Listing</th>
             <th>Sessions</th>
+            <th>Cleaner</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="checkout-body">
-          <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+          <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -65,6 +67,7 @@
 
 <script>
   var API = 'https://booking-management-2-3851.onrender.com';
+  var cleaners = [];
 
   function escapeHtml(text) {
     return String(text == null ? '' : text)
@@ -92,9 +95,47 @@
     document.getElementById('alerts').innerHTML = '';
   }
 
+  function cleanerSelectHtml(bookingId) {
+    if (!bookingId) {
+      return '<span class="text-muted">No booking id</span>';
+    }
+    if (!cleaners.length) {
+      return '<span class="text-muted">No cleaners found</span>';
+    }
+    var options = cleaners.map(function(cleaner) {
+      return '<option value="' + escapeHtml(cleaner.id) + '">' + escapeHtml(cleaner.name) + '</option>';
+    }).join('');
+
+    return '<select class="form-control input-sm cleaner-select" data-booking-id="' + escapeHtml(bookingId) + '">' + options + '</select>';
+  }
+
+  function actionButtonHtml(booking) {
+    var bookingId = booking && (booking.booking_id || booking.id);
+    var bookingCode = booking && booking.confirmation_code;
+    var checkoutDate = booking && booking.checkout_date;
+    if (!bookingId) {
+      return '<button type="button" class="btn btn-default btn-xs" disabled>Save</button>';
+    }
+    return '<button type="button" class="btn btn-success btn-xs save-session-btn" data-booking-id="' + escapeHtml(bookingId) + '" data-booking-code="' + escapeHtml(bookingCode || '') + '" data-checkout-date="' + escapeHtml(checkoutDate || '') + '">Save</button>';
+  }
+
+  function loadCleaners() {
+    return $.getJSON(API + '/cleaners/')
+      .done(function(data) {
+        cleaners = (data || []).map(function(item) {
+          return {
+            id: item.cleaner_id || item.id,
+            name: item.cleaner_name || item.name || ('Cleaner #' + (item.cleaner_id || item.id || ''))
+          };
+        }).filter(function(item) {
+          return item.id != null;
+        });
+      });
+  }
+
   function loadCheckout() {
     var tbody = document.getElementById('checkout-body');
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>';
 
     $.getJSON(API + '/bookings/checkout/')
       .done(function(data) {
@@ -106,6 +147,7 @@
         data.forEach(function(day) {
           (day.by_property || []).forEach(function(group) {
             (group.bookings || []).forEach(function(booking) {
+              var bookingId = booking.booking_id || booking.id;
               rows.push(
                 '<tr>' +
                   '<td>' + escapeHtml(day.checkout_date) + '</td>' +
@@ -115,12 +157,19 @@
                   '<td><code>' + escapeHtml(booking.confirmation_code) + '</code></td>' +
                   '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                   '<td>' + sessionText(booking.sessions) + '</td>' +
+                  '<td>' + cleanerSelectHtml(bookingId) + '</td>' +
+                  '<td>' + actionButtonHtml({
+                    booking_id: bookingId,
+                    confirmation_code: booking.confirmation_code,
+                    checkout_date: day.checkout_date
+                  }) + '</td>' +
                 '</tr>'
               );
             });
           });
 
           (day.unassigned || []).forEach(function(booking) {
+            var bookingId = booking.booking_id || booking.id;
             rows.push(
               '<tr class="warning">' +
                 '<td>' + escapeHtml(day.checkout_date) + '</td>' +
@@ -130,13 +179,19 @@
                 '<td><code>' + escapeHtml(booking.confirmation_code) + '</code></td>' +
                 '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + sessionText(booking.sessions) + '</td>' +
+                '<td>' + cleanerSelectHtml(bookingId) + '</td>' +
+                '<td>' + actionButtonHtml({
+                  booking_id: bookingId,
+                  confirmation_code: booking.confirmation_code,
+                  checkout_date: day.checkout_date
+                }) + '</td>' +
               '</tr>'
             );
           });
         });
 
         if (rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No checkout data found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No checkout data found.</td></tr>';
           return;
         }
 
@@ -148,12 +203,75 @@
           message += ' (HTTP ' + xhr.status + ')';
         }
         showError(message);
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Failed to load data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Failed to load data.</td></tr>';
       });
   }
 
+  function saveCleaningSession(booking, cleanerId, buttonEl) {
+    var bookingCode = booking && booking.confirmation_code;
+    var cleanDate = booking && booking.checkout_date;
+    if (!bookingCode || !cleanDate) {
+      showError('Missing booking confirmation code or checkout date.');
+      return;
+    }
+
+    buttonEl.disabled = true;
+    buttonEl.textContent = 'Saving...';
+
+    $.ajax({
+      url: API + '/cleaning-sessions/',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        cleaner_id: Number(cleanerId),
+        clean_date: cleanDate,
+        confirmation_codes: [bookingCode]
+      })
+    })
+      .done(function() {
+        buttonEl.textContent = 'Saved';
+        loadCheckout();
+      })
+      .fail(function(xhr) {
+        var message = 'Could not create session';
+        if (xhr && xhr.status) {
+          message += ' (HTTP ' + xhr.status + ')';
+        }
+        showError(message);
+        buttonEl.disabled = false;
+        buttonEl.textContent = 'Save';
+      });
+  }
+
+  document.getElementById('checkout-body').addEventListener('click', function(event) {
+    if (!event.target.classList.contains('save-session-btn')) return;
+    var button = event.target;
+    var bookingId = button.getAttribute('data-booking-id');
+    var bookingCode = button.getAttribute('data-booking-code');
+    var checkoutDate = button.getAttribute('data-checkout-date');
+    var select = document.querySelector('.cleaner-select[data-booking-id="' + bookingId + '"]');
+    if (!select || !select.value) {
+      showError('Please select a cleaner.');
+      return;
+    }
+    saveCleaningSession({
+      booking_id: bookingId,
+      confirmation_code: bookingCode,
+      checkout_date: checkoutDate
+    }, select.value, button);
+  });
+
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
-  loadCheckout();
+  loadCleaners()
+    .done(loadCheckout)
+    .fail(function(xhr) {
+      var message = 'Could not load /cleaners';
+      if (xhr && xhr.status) {
+        message += ' (HTTP ' + xhr.status + ')';
+      }
+      showError(message);
+      loadCheckout();
+    });
 </script>
 
 </body>
