@@ -48,7 +48,7 @@
         <li><code>total</code> (number)</li>
         <li><code>by_property[]</code> with <code>property</code>, <code>count</code>, <code>bookings[]</code></li>
         <li><code>bookings[]</code> with <code>confirmation_code</code>, <code>listing</code>, <code>listing_number</code>, <code>sessions[]</code></li>
-        <li><code>sessions[]</code> with <code>session_id</code>, <code>cleaner_name</code></li>
+        <li><code>sessions[]</code> with <code>session_id</code>, <code>cleaner_name</code>, <code>hours</code>, <code>minutes</code></li>
         <li><code>unassigned[]</code> bookings not linked to a property</li>
       </ul>
     </div>
@@ -89,13 +89,14 @@
             <th>Listing</th>
             <th>Listing #</th>
             <th>Sessions</th>
+            <th>Time</th>
             <th>Cleaner</th>
             <th>Action</th>
             <th>Delete</th>
           </tr>
         </thead>
         <tbody id="checkout-body">
-          <tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>
+          <tr><td colspan="12" class="text-center text-muted">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -122,6 +123,27 @@
       var cleaner = s.cleaner_name ? escapeHtml(s.cleaner_name) : 'Unknown';
       return '<span class="label label-info" style="margin-right:4px; display:inline-block; margin-bottom:3px;">#' + s.session_id + ' - ' + cleaner + '</span>';
     }).join('');
+  }
+
+  function sessionTimeText(sessions) {
+    if (!sessions || sessions.length === 0) return '<span class="text-muted">-</span>';
+    return sessions.map(function(s) {
+      var hours = Number.isFinite(Number(s.hours)) ? Math.max(0, Math.floor(Number(s.hours))) : 0;
+      var minutes = Number.isFinite(Number(s.minutes)) ? Math.max(0, Math.floor(Number(s.minutes))) : 0;
+      minutes = Math.min(59, minutes);
+      return '<span class="label label-default" style="margin-right:4px; display:inline-block; margin-bottom:3px;">' +
+        String(hours) + 'h ' + String(minutes).padStart(2, '0') + 'm</span>';
+    }).join('');
+  }
+
+  function uniqueSessionsById(sessions) {
+    var seen = {};
+    return (sessions || []).filter(function(session) {
+      if (!session || session.session_id == null) return false;
+      if (seen[session.session_id]) return false;
+      seen[session.session_id] = true;
+      return true;
+    });
   }
 
   function showError(message) {
@@ -199,7 +221,7 @@
 
   function loadCheckout() {
     var tbody = document.getElementById('checkout-body');
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">Loading...</td></tr>';
     saveGroups = {};
 
     $.getJSON(API + '/bookings/checkout/')
@@ -225,6 +247,7 @@
                 sessions = sessions.concat(booking.sessions);
               }
             });
+            sessions = uniqueSessionsById(sessions);
 
             rows.push(
               '<tr>' +
@@ -237,6 +260,7 @@
                 '<td>' + listings + '</td>' +
                 '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
                 '<td>' + sessionText(sessions) + '</td>' +
+                '<td>' + sessionTimeText(sessions) + '</td>' +
                 '<td>' + cleanerSelectHtml(group.property, day.checkout_date) + '</td>' +
                 '<td>' + actionButtonHtml({
                   property: group.property,
@@ -264,6 +288,7 @@
                 '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
                 '<td>' + sessionText(booking.sessions) + '</td>' +
+                '<td>' + sessionTimeText(booking.sessions) + '</td>' +
                 '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date) + '</td>' +
                 '<td>' + actionButtonHtml({
                   property: 'unassigned:' + booking.confirmation_code,
@@ -282,7 +307,7 @@
         });
 
         if (rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No checkout data found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">No checkout data found.</td></tr>';
           return;
         }
 
@@ -294,7 +319,7 @@
           message += ' (HTTP ' + xhr.status + ')';
         }
         showError(message);
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Failed to load data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">Failed to load data.</td></tr>';
       });
   }
 
