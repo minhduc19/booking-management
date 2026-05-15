@@ -136,16 +136,6 @@
     }).join('');
   }
 
-  function uniqueSessionsById(sessions) {
-    var seen = {};
-    return (sessions || []).filter(function(session) {
-      if (!session || session.session_id == null) return false;
-      if (seen[session.session_id]) return false;
-      seen[session.session_id] = true;
-      return true;
-    });
-  }
-
   function showError(message) {
     document.getElementById('alerts').innerHTML =
       '<div class="alert alert-danger"><strong>Error:</strong> ' + escapeHtml(message) + '</div>';
