@@ -12,9 +12,9 @@ venv/
 .env.*
  
 # SQLite database
-#*.db
-#*.db-shm
-#*.db-wal
+*.db
+*.db-shm
+*.db-wal
  
 # Pytest
 .pytest_cache/
