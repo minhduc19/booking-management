@@ -1,9 +1,11 @@
-- Create a staging branch and staging environment
+- Restructure and reimplement like [this repo](https://youtu.be/TO4aQ3ghFOc?si=evldQVp1EQQPp0eW)
+- Create a staging branch and staging environment [Done]
 - Create endpoint to show bookings since 10 days ago
 - Create table for listing details rather than the current hard coded mapping
 - Endpoint to edit cleaning session
 - Endpoint to edit cleaner
-# FastapiBoierPlate
+- Github action to a [server](https://github.com/andfadeev/digital-ocean-github-actions-ci)
+# FastapiTemplate
 
 For action to works, environment secrets need to be set up:
 
