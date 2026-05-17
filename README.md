@@ -6,7 +6,7 @@
 - Endpoint to edit cleaner
 - Github action to a [server](https://github.com/andfadeev/digital-ocean-github-actions-ci)
 # FastapiTemplate
-
+# Change in test
 For action to works, environment secrets need to be set up:
 
       DATABASE_HOSTNAME: ${{secrets.DATABASE_HOSTNAME}}
