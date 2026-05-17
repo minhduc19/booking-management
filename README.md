@@ -1,4 +1,4 @@
-- Restructure and reimplement like [this repo](https://youtu.be/TO4aQ3ghFOc?si=evldQVp1EQQPp0eW) - some change in staging
+- Restructure and reimplement like [this repo](https://youtu.be/TO4aQ3ghFOc?si=evldQVp1EQQPp0eW)
 - Create a staging branch and staging environment [Done]
 - Create endpoint to show bookings since 10 days ago
 - Create table for listing details rather than the current hard coded mapping
