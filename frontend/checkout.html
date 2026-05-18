@@ -67,7 +67,11 @@
           <label for="minutes-input">Minutes</label>
           <input id="minutes-input" type="number" class="form-control input-sm" min="0" max="59" value="0">
         </div>
-        <div class="col-sm-8">
+        <div class="col-sm-2">
+          <label for="fix-cost-input">Fixed Cost</label>
+          <input id="fix-cost-input" type="number" class="form-control input-sm" min="0" step="0.01" value="0">
+        </div>
+        <div class="col-sm-6">
           <label for="notes-input">Notes</label>
           <input id="notes-input" type="text" class="form-control input-sm" placeholder="Optional notes">
         </div>
@@ -329,15 +333,19 @@
     var hoursRaw = Number(document.getElementById('hours-input').value || 0);
     var minutesRaw = Number(document.getElementById('minutes-input').value || 0);
     var notes = document.getElementById('notes-input').value || '';
+    var fixCostRaw = Number(document.getElementById('fix-cost-input').value || 0);
 
     var hours = Number.isFinite(hoursRaw) ? Math.max(0, Math.floor(hoursRaw)) : 0;
     var minutes = Number.isFinite(minutesRaw) ? Math.floor(minutesRaw) : 0;
     minutes = Math.min(59, Math.max(0, minutes));
 
+    var fixCost = Number.isFinite(fixCostRaw) ? Math.max(0, fixCostRaw) : 0;
+
     return {
       hours: hours,
       minutes: minutes,
-      notes: notes
+      notes: notes,
+      fix_cost: fixCost
     };
   }
 
@@ -364,6 +372,7 @@
         hours: details.hours,
         minutes: details.minutes,
         notes: details.notes,
+        fix_cost: details.fix_cost,
         confirmation_codes: confirmationCodes
       })
     })

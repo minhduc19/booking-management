@@ -185,9 +185,11 @@
     }
 
     var totalMinutes = 0;
+    var totalFixCost = 0;
 
     var rows = sessions.map(function(session) {
       totalMinutes += (session.hours * 60) + session.minutes;
+      totalFixCost += Number(session.fix_cost || 0);
       var bookingCodes = (session.session_bookings || []).map(function(booking) {
         return escapeHtml(booking.confirmation_code);
       }).join('<br>');
@@ -198,12 +200,13 @@
         '<td>' + escapeHtml(session.hours) + '</td>' +
         '<td>' + escapeHtml(session.minutes) + '</td>' +
         '<td>' + escapeHtml(session.notes || '') + '</td>' +
+        '<td>£' + escapeHtml(Number(session.fix_cost || 0).toFixed(2)) + '</td>' +
         '<td>' + bookingCodes + '</td>' +
       '</tr>';
     }).join('');
 
     var totalHours = totalMinutes / 60;
-    var totalCost = totalHours * Number(rate || 0);
+    var totalCost = (totalHours * Number(rate || 0)) + totalFixCost;
 
     container.innerHTML =
       '<div class="table-responsive">' +
@@ -215,6 +218,7 @@
               '<th>Hours</th>' +
               '<th>Minutes</th>' +
               '<th>Notes</th>' +
+              '<th>Fixed Cost</th>' +
               '<th>Booking Codes</th>' +
             '</tr>' +
           '</thead>' +
@@ -223,6 +227,7 @@
       '</div>' +
       '<p><strong>Total Hours:</strong> ' + totalHours.toFixed(2) + '</p>' +
       '<p><strong>Hourly Rate:</strong> £' + escapeHtml(rate || 0) + '</p>' +
+      '<p><strong>Total Fixed Cost:</strong> £' + totalFixCost.toFixed(2) + '</p>' +
       '<p style="margin-bottom:0;"><strong>Total Cost:</strong> £' + totalCost.toFixed(2) + '</p>';
   }
 

@@ -101,6 +101,7 @@ def upgrade() -> None:
             sa.Column("hours", sa.Integer(), nullable=False),
             sa.Column("minutes", sa.Integer(), nullable=False),
             sa.Column("notes", sa.String(), nullable=True),
+            sa.Column("fix_cost", sa.Float(), nullable=False, server_default="0"),
             sa.ForeignKeyConstraint(["cleaner_id"], ["cleaners.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
