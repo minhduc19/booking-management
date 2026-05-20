@@ -33,3 +33,41 @@ def test_create_cleaner_minimal(client):
     assert res.json()["name"] == "John"
     assert res.json()["email"] is None
     assert res.json()["phone"] is None
+
+def test_update_cleaning_session(client):
+    cleaner_res = client.post("/cleaners/", json={"name": "Session Cleaner"})
+    cleaner_id = cleaner_res.json()["id"]
+
+    booking_payload = {
+        "confirmation_code": "CONF-100",
+        "status": "confirmed",
+        "guest_name": "Guest A",
+        "start_date": "2026-05-10",
+        "end_date": "2026-05-12",
+        "nights": 2,
+    }
+    client.post("/bookings/", json=booking_payload)
+
+    create_payload = {
+        "cleaner_id": cleaner_id,
+        "clean_date": "2026-05-12",
+        "hours": 2,
+        "minutes": 30,
+        "notes": "Initial session",
+        "confirmation_codes": ["CONF-100"],
+    }
+    created = client.post("/cleaning-sessions/", json=create_payload)
+    session_id = created.json()["id"]
+
+    update_payload = {
+        "hours": 3,
+        "minutes": 45,
+        "notes": "Updated session",
+    }
+    updated = client.patch(f"/cleaning-sessions/{session_id}", json=update_payload)
+
+    assert updated.status_code == 200
+    assert updated.json()["hours"] == 3
+    assert updated.json()["minutes"] == 45
+    assert updated.json()["notes"] == "Updated session"
+    assert len(updated.json()["session_bookings"]) == 1
