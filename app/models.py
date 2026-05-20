@@ -76,7 +76,7 @@ class SessionBooking(Base):
     __tablename__ = "session_bookings"
 
     id                = Column(Integer, primary_key=True, index=True)
-    session_id        = Column(Integer, ForeignKey("cleaning_sessions.id"), nullable=False)
+    session_id        = Column(Integer, ForeignKey("cleaning_sessions.id", ondelete="CASCADE"), nullable=False)
     confirmation_code = Column(String, ForeignKey("bookings.confirmation_code"), nullable=False)
 
     session = relationship("CleaningSession", back_populates="session_bookings")
