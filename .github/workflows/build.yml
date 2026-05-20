@@ -3,6 +3,7 @@ name: Build Code
 on:
   push:
     branches:
+      - main
       - test
       - staging
 
