@@ -525,15 +525,19 @@ def delete_cleaning_sessions_by_confirmation_codes(
     if not session_ids:
         return {"deleted_sessions": 0, "deleted_session_ids": [], "matched_confirmation_codes": confirmation_codes}
 
-    deleted = (
+    sessions_to_delete = (
         db.query(models.CleaningSession)
         .filter(models.CleaningSession.id.in_(session_ids))
-        .delete(synchronize_session=False)
+        .all()
     )
+
+    for session in sessions_to_delete:
+        db.delete(session)
+
     db.commit()
 
     return {
-        "deleted_sessions": deleted,
+        "deleted_sessions": len(sessions_to_delete),
         "deleted_session_ids": session_ids,
         "matched_confirmation_codes": confirmation_codes,
     }
