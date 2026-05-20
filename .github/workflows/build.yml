@@ -27,3 +27,6 @@ jobs:
 
       - name: Test with pytest
         run: pytest tests/ -v -W ignore::DeprecationWarning
+
+      - name: Test alembic 
+        run: alembic upgrade head
