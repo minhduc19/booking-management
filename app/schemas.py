@@ -93,6 +93,16 @@ class CleaningSessionCreate(BaseModel):
     confirmation_codes: list[str] = []  # bookings to attach to this session
 
 
+
+
+class CleaningSessionUpdate(BaseModel):
+    cleaner_id: int | None = None
+    clean_date: date | None = None
+    hours: int | None = None
+    minutes: int | None = None  # 0-59
+    notes: str | None = None
+    confirmation_codes: list[str] | None = None  # replace attached bookings when provided
+
 class CleaningSessionDeleteByCodes(BaseModel):
     confirmation_codes: list[str]
 

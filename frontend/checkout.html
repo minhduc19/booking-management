@@ -34,6 +34,9 @@
       <button class="btn btn-primary" id="reload-btn">
         <span class="glyphicon glyphicon-refresh"></span> Reload
       </button>
+      <button class="btn btn-default" id="scroll-today-btn" style="margin-left:8px;">
+        <span class="glyphicon glyphicon-calendar"></span> Go to Today
+      </button>
       <span class="text-muted" id="last-updated" style="margin-left:10px;"></span>
     </div>
   </div>
@@ -159,6 +162,18 @@
     document.getElementById('alerts').innerHTML = '';
   }
 
+  function scrollCheckoutDateToToday() {
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var wrap = document.querySelector('.checkout-table-wrap');
+    var row = document.querySelector('#checkout-body tr[data-checkout-date="' + todayIso + '"]');
+    if (!wrap || !row) {
+      showError('No checkout rows found for today (' + todayIso + ').');
+      return;
+    }
+    clearError();
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   function cleanerSelectHtml(property, checkoutDate, key) {
     if (!property || !checkoutDate || !key) {
       return '<span class="text-muted">Missing group data</span>';
@@ -258,7 +273,7 @@
             var rowKey = 'group-' + rowCounter;
 
             rows.push(
-              '<tr>' +
+              '<tr data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
                 '<td>' + escapeHtml(day.checkout_date) + '</td>' +
                 '<td>' + escapeHtml(day.total) + '</td>' +
                 '<td>' + escapeHtml(group.property) + '</td>' +
@@ -291,7 +306,7 @@
             var unassignedRowKey = 'group-' + rowCounter;
 
             rows.push(
-              '<tr class="warning">' +
+              '<tr class="warning" data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
                 '<td>' + escapeHtml(day.checkout_date) + '</td>' +
                 '<td>' + escapeHtml(day.total) + '</td>' +
                 '<td><span class="label label-warning">Unassigned property</span></td>' +
@@ -464,6 +479,7 @@
   });
 
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
+  document.getElementById('scroll-today-btn').addEventListener('click', scrollCheckoutDateToToday);
   loadCleaners()
     .done(loadCheckout)
     .fail(function(xhr) {

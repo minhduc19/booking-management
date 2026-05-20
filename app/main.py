@@ -452,6 +452,40 @@ def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session 
     return db_session
 
 
+@app.patch("/cleaning-sessions/{session_id}", response_model=schemas.CleaningSessionResponse)
+def update_cleaning_session(session_id: int, payload: schemas.CleaningSessionUpdate, db: Session = Depends(get_db)):
+    session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    data = payload.model_dump(exclude_unset=True)
+
+    if "minutes" in data and not 0 <= data["minutes"] <= 59:
+        raise HTTPException(status_code=400, detail="minutes must be between 0 and 59")
+
+    if "cleaner_id" in data:
+        cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == data["cleaner_id"]).first()
+        if cleaner is None:
+            raise HTTPException(status_code=404, detail="Cleaner not found")
+
+    if "confirmation_codes" in data:
+        codes = data.pop("confirmation_codes")
+        for code in codes:
+            if not db.query(models.Booking).filter(models.Booking.confirmation_code == code).first():
+                raise HTTPException(status_code=404, detail=f"Booking not found: {code}")
+
+        db.query(models.SessionBooking).filter(models.SessionBooking.session_id == session_id).delete(synchronize_session=False)
+        for code in codes:
+            db.add(models.SessionBooking(session_id=session_id, confirmation_code=code))
+
+    for key, value in data.items():
+        setattr(session, key, value)
+
+    db.commit()
+    db.refresh(session)
+    return session
+
+
 @app.post("/cleaning-sessions/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleaningSessionResponse)
 def add_booking_to_session(session_id: int, confirmation_code: str, db: Session = Depends(get_db)):
     session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
