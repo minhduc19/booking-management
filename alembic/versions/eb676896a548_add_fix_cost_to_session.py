@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'eb676896a548'
-down_revision: Union[str, Sequence[str], None] = 'ddfbfd3c8356'
+down_revision: Union[str, Sequence[str], None] = '747a6abc54c1'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -24,13 +24,8 @@ def upgrade() -> None:
         "cleaning_sessions",
         sa.Column("fix_cost", sa.Float(), nullable=False, server_default="0"),
     )
-    op.add_column(
-        "cleaning_sessions",
-        sa.Column("paid_status", sa.Boolean(), nullable=False, server_default=sa.false()),
-    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column("cleaning_sessions", "paid_status")
     op.drop_column("cleaning_sessions", "fix_cost")
