@@ -78,8 +78,6 @@
             <th>Property</th>
             <th>Property Count</th>
             <th>Listing #</th>
-            <th>Confirmation Code</th>
-            <th>Listing</th>
             <th>Sessions</th>
             <th>Time</th>
             <th>Cleaner</th>
@@ -264,8 +262,6 @@
                 '<td>' + escapeHtml(group.property) + '</td>' +
                 '<td>' + escapeHtml(group.count) + '</td>' +
                 '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
-                '<td>' + confirmationCodes.map(function(code) { return '<code>' + escapeHtml(code) + '</code>'; }).join('<br>') + '</td>' +
-                '<td>' + listings + '</td>' +
                 '<td>' + sessionText(sessions) + '</td>' +
                 '<td>' + sessionTimeText(sessions) + '</td>' +
                 '<td>' + cleanerSelectHtml(group.property, day.checkout_date, rowKey) + '</td>' +
@@ -297,8 +293,6 @@
                 '<td><span class="label label-warning">Unassigned property</span></td>' +
                 '<td>-</td>' +
                 '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
-                '<td><code>' + escapeHtml(booking.confirmation_code || '-') + '</code></td>' +
-                '<td>' + escapeHtml(booking.listing || '-') + '</td>' +
                 '<td>' + sessionText(unassignedSessions) + '</td>' +
                 '<td>' + sessionTimeText(unassignedSessions) + '</td>' +
                 '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date, unassignedRowKey) + '</td>' +
