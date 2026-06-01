@@ -1,4 +1,4 @@
-"""add fix cost to session
+"""add fix cost and paid status to session
 
 Revision ID: eb676896a548
 Revises: ddfbfd3c8356
@@ -24,8 +24,13 @@ def upgrade() -> None:
         "cleaning_sessions",
         sa.Column("fix_cost", sa.Float(), nullable=False, server_default="0"),
     )
+    op.add_column(
+        "cleaning_sessions",
+        sa.Column("paid_status", sa.Boolean(), nullable=False, server_default=sa.false()),
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_column("cleaning_sessions", "paid_status")
     op.drop_column("cleaning_sessions", "fix_cost")
