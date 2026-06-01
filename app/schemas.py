@@ -89,6 +89,7 @@ class CleaningSessionCreate(BaseModel):
     hours: int = 0
     minutes: int = 0  # 0-59
     notes: str | None = None
+    fix_cost: float = 0
     confirmation_codes: list[str] = []  # bookings to attach to this session
 
 
@@ -100,6 +101,7 @@ class CleaningSessionUpdate(BaseModel):
     hours: int | None = None
     minutes: int | None = None  # 0-59
     notes: str | None = None
+    fix_cost: float | None = None
     confirmation_codes: list[str] | None = None  # replace attached bookings when provided
 
 class CleaningSessionDeleteByCodes(BaseModel):
@@ -120,6 +122,7 @@ class CleaningSessionResponse(BaseModel):
     hours: int
     minutes: int
     notes: str | None = None
+    fix_cost: float
     #cleaner: "CleanerResponse | None" = None
     session_bookings: list[SessionBookingResponse] = []
  

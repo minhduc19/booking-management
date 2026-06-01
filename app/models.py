@@ -66,6 +66,7 @@ class CleaningSession(Base):
     hours      = Column(Integer, nullable=False, default=0)
     minutes    = Column(Integer, nullable=False, default=0)  # 0-59
     notes      = Column(String, nullable=True)
+    fix_cost   = Column(Float, nullable=False, default=0.0)
 
     cleaner          = relationship("Cleaner", back_populates="sessions")
     session_bookings = relationship("SessionBooking", back_populates="session", cascade="all, delete-orphan")

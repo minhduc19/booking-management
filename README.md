@@ -1,10 +1,14 @@
-- Create a staging branch and staging environment
+- Create a staging branch and staging environment [update front-end]
+- Create a script to open the app quickly
+- reimplement the session and booking to reflect the one to many instead of current many-to-many
+- One button to assign cleaner
+- One button to update timing. Need another endpoint to edit
 - Create endpoint to show bookings since 10 days ago
 - Create table for listing details rather than the current hard coded mapping
 - Endpoint to edit cleaning session
 - Endpoint to edit cleaner
-# FastapiBoierPlate
-
+- Github action to a [server](https://github.com/andfadeev/digital-ocean-github-actions-ci)
+# FastapiTemplate
 For action to works, environment secrets need to be set up:
 
       DATABASE_HOSTNAME: ${{secrets.DATABASE_HOSTNAME}}

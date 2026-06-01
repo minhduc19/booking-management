@@ -1,7 +1,7 @@
 """Add ON DELETE CASCADE to session_bookings.session_id FK
 
 Revision ID: 9c1b7e4a2d11
-Revises: ddfbfd3c8356
+Revises: eb676896a548
 Create Date: 2026-05-20 00:00:00.000000
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "9c1b7e4a2d11"
-down_revision: Union[str, Sequence[str], None] = "ddfbfd3c8356"
+down_revision: Union[str, Sequence[str], None] = "eb676896a548"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
