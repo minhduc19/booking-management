@@ -101,6 +101,7 @@ class CleaningSessionUpdate(BaseModel):
     hours: int | None = None
     minutes: int | None = None  # 0-59
     notes: str | None = None
+    fix_cost: float | None = None
     confirmation_codes: list[str] | None = None  # replace attached bookings when provided
 
 class CleaningSessionDeleteByCodes(BaseModel):
