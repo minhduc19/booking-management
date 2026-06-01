@@ -54,6 +54,7 @@ def test_update_cleaning_session(client):
         "hours": 2,
         "minutes": 30,
         "notes": "Initial session",
+        "fix_cost": 25.0,
         "confirmation_codes": ["CONF-100"],
     }
     created = client.post("/cleaning-sessions/", json=create_payload)
@@ -63,6 +64,7 @@ def test_update_cleaning_session(client):
         "hours": 3,
         "minutes": 45,
         "notes": "Updated session",
+        "fix_cost": 42.5,
     }
     updated = client.patch(f"/cleaning-sessions/{session_id}", json=update_payload)
 
@@ -70,4 +72,5 @@ def test_update_cleaning_session(client):
     assert updated.json()["hours"] == 3
     assert updated.json()["minutes"] == 45
     assert updated.json()["notes"] == "Updated session"
+    assert updated.json()["fix_cost"] == 42.5
     assert len(updated.json()["session_bookings"]) == 1
