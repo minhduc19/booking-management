@@ -93,4 +93,6 @@ def test_update_cleaning_session(client):
 
     checkout = client.get("/bookings/checkout/")
     assert checkout.status_code == 200
-    assert checkout.json()[0]["unassigned"][0]["sessions"][0]["paid_status"] is True
+    checkout_session = checkout.json()[0]["unassigned"][0]["sessions"][0]
+    assert checkout_session["cleaner_id"] == cleaner_id
+    assert checkout_session["paid_status"] is True
