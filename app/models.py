@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Date, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -67,6 +67,7 @@ class CleaningSession(Base):
     minutes    = Column(Integer, nullable=False, default=0)  # 0-59
     notes      = Column(String, nullable=True)
     fix_cost   = Column(Float, nullable=False, default=0.0)
+    paid_status = Column(Boolean, nullable=False, default=False)
 
     cleaner          = relationship("Cleaner", back_populates="sessions")
     session_bookings = relationship("SessionBooking", back_populates="session", cascade="all, delete-orphan")

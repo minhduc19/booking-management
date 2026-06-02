@@ -58,6 +58,8 @@ def test_update_cleaning_session(client):
         "confirmation_codes": ["CONF-100"],
     }
     created = client.post("/cleaning-sessions/", json=create_payload)
+    assert created.status_code == 200
+    assert created.json()["paid_status"] is False
     session_id = created.json()["id"]
 
     update_payload = {
@@ -65,6 +67,7 @@ def test_update_cleaning_session(client):
         "minutes": 45,
         "notes": "Updated session",
         "fix_cost": 42.5,
+        "paid_status": True,
     }
     updated = client.patch(f"/cleaning-sessions/{session_id}", json=update_payload)
 
@@ -73,4 +76,23 @@ def test_update_cleaning_session(client):
     assert updated.json()["minutes"] == 45
     assert updated.json()["notes"] == "Updated session"
     assert updated.json()["fix_cost"] == 42.5
+    assert updated.json()["paid_status"] is True
     assert len(updated.json()["session_bookings"]) == 1
+
+    fetched = client.get(f"/cleaning-sessions/{session_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["paid_status"] is True
+
+    listed = client.get("/cleaning-sessions/")
+    assert listed.status_code == 200
+    assert listed.json()[0]["paid_status"] is True
+
+    cleaner_sessions = client.get(f"/cleaners/{cleaner_id}/sessions")
+    assert cleaner_sessions.status_code == 200
+    assert cleaner_sessions.json()["sessions"][0]["paid_status"] is True
+
+    checkout = client.get("/bookings/checkout/")
+    assert checkout.status_code == 200
+    checkout_session = checkout.json()[0]["unassigned"][0]["sessions"][0]
+    assert checkout_session["cleaner_id"] == cleaner_id
+    assert checkout_session["paid_status"] is True

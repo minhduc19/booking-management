@@ -95,7 +95,8 @@
 </div>
 
 <script>
-  var API = 'https://booking-management-2-3851.onrender.com';
+  // Use the backend that served this page (local, staging, or production).
+  var API = window.location.origin;
   var cleaners = [];
   var saveGroups = {};
 
@@ -167,15 +168,18 @@
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  function cleanerSelectHtml(property, checkoutDate, key) {
+  function cleanerSelectHtml(property, checkoutDate, key, sessions) {
     if (!property || !checkoutDate || !key) {
       return '<span class="text-muted">Missing group data</span>';
     }
     if (!cleaners.length) {
       return '<span class="text-muted">No cleaners found</span>';
     }
-    var options = cleaners.map(function(cleaner) {
-      return '<option value="' + escapeHtml(cleaner.id) + '">' + escapeHtml(cleaner.name) + '</option>';
+    var assignedCleanerId = sessions && sessions.length ? sessions[0].cleaner_id : null;
+    var options = '<option value=""' + (assignedCleanerId == null ? ' selected' : '') + '></option>';
+    options += cleaners.map(function(cleaner) {
+      var isAssignedCleaner = assignedCleanerId != null && String(cleaner.id) === String(assignedCleanerId);
+      return '<option value="' + escapeHtml(cleaner.id) + '"' + (isAssignedCleaner ? ' selected' : '') + '>' + escapeHtml(cleaner.name) + '</option>';
     }).join('');
 
     return '<select class="form-control input-sm cleaner-select" data-group-key="' + escapeHtml(key) + '">' + options + '</select>';
@@ -275,7 +279,7 @@
                 '<td>' + sessionText(sessions) + '</td>' +
                 '<td>' + sessionTimeText(sessions) + '</td>' +
                 '<td>' + sessionFixCostText(sessions) + '</td>' +
-                '<td>' + cleanerSelectHtml(group.property, day.checkout_date, rowKey) + '</td>' +
+                '<td>' + cleanerSelectHtml(group.property, day.checkout_date, rowKey, sessions) + '</td>' +
                 '<td>' + actionButtonHtml({
                   property: group.property,
                   confirmation_codes: confirmationCodes,
@@ -307,7 +311,7 @@
                 '<td>' + sessionText(unassignedSessions) + '</td>' +
                 '<td>' + sessionTimeText(unassignedSessions) + '</td>' +
                 '<td>' + sessionFixCostText(unassignedSessions) + '</td>' +
-                '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date, unassignedRowKey) + '</td>' +
+                '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date, unassignedRowKey, unassignedSessions) + '</td>' +
                 '<td>' + actionButtonHtml({
                   property: 'unassigned:' + booking.confirmation_code,
                   confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],

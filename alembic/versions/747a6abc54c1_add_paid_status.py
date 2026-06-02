@@ -1,8 +1,8 @@
-"""add fix cost and paid status to session
+"""add paid status
 
-Revision ID: eb676896a548
-Revises: 9c1b7e4a2d11
-Create Date: 2026-05-18 14:21:31.485930
+Revision ID: 747a6abc54c1
+Revises: eb676896a548
+Create Date: 2026-06-01 14:21:05.109488
 
 """
 from typing import Sequence, Union
@@ -13,8 +13,8 @@ from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
-revision: str = "eb676896a548"
-down_revision: Union[str, Sequence[str], None] = "9c1b7e4a2d11"
+revision: str = "747a6abc54c1"
+down_revision: Union[str, Sequence[str], None] = "eb676896a548"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -28,19 +28,19 @@ def column_exists(table_name: str, column_name: str) -> bool:
 
 def upgrade() -> None:
     """Upgrade schema."""
-    if not column_exists("cleaning_sessions", "fix_cost"):
+    if not column_exists("cleaning_sessions", "paid_status"):
         op.add_column(
             "cleaning_sessions",
             sa.Column(
-                "fix_cost",
-                sa.Float(),
+                "paid_status",
+                sa.Boolean(),
                 nullable=False,
-                server_default="0",
+                server_default=sa.false(),
             ),
         )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    if column_exists("cleaning_sessions", "fix_cost"):
-        op.drop_column("cleaning_sessions", "fix_cost")
+    if column_exists("cleaning_sessions", "paid_status"):
+        op.drop_column("cleaning_sessions", "paid_status")
