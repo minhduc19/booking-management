@@ -73,8 +73,8 @@
       <table class="table table-striped table-bordered table-condensed" id="checkout-table" style="margin-bottom:0;">
         <thead>
           <tr>
-            <th>Checkout Date</th>
             <th>Total (date)</th>
+            <th>Checkout Date</th>
             <th>Property</th>
             <th>Property Count</th>
             <th>Listing #</th>
@@ -271,8 +271,8 @@
 
             rows.push(
               '<tr data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
-                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
                 '<td>' + escapeHtml(day.total) + '</td>' +
+                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
                 '<td>' + escapeHtml(group.property) + '</td>' +
                 '<td>' + escapeHtml(group.count) + '</td>' +
                 '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
@@ -303,8 +303,8 @@
 
             rows.push(
               '<tr class="warning" data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
-                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
                 '<td>' + escapeHtml(day.total) + '</td>' +
+                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
                 '<td><span class="label label-warning">Unassigned property</span></td>' +
                 '<td>-</td>' +
                 '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
