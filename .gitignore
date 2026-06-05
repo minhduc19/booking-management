@@ -15,6 +15,7 @@ venv/
 *.db
 *.db-shm
 *.db-wal
+data/
  
 # Pytest
 .pytest_cache/
