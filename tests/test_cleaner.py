@@ -34,7 +34,6 @@ def test_create_cleaner_minimal(client):
     assert res.json()["email"] is None
     assert res.json()["phone"] is None
 
-<<<<<<< HEAD
 def test_update_cleaning_session(client):
     cleaner_res = client.post("/cleaners/", json={"name": "Session Cleaner"})
     cleaner_id = cleaner_res.json()["id"]
@@ -97,5 +96,3 @@ def test_update_cleaning_session(client):
     checkout_session = checkout.json()[0]["unassigned"][0]["sessions"][0]
     assert checkout_session["cleaner_id"] == cleaner_id
     assert checkout_session["paid_status"] is True
-=======
->>>>>>> 61037e2 (add tests)
