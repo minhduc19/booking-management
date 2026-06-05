@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env")
 
     app_name: str = "FastAPI SQLite App"
-    database_url: str = "sqlite:///data/app.db" #file path for production
+    database_url: str = "sqlite:///app.db" #file path for production
 
 
 settings = Settings()
