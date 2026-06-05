@@ -37,6 +37,14 @@
       <button class="btn btn-default" id="scroll-today-btn" style="margin-left:8px;">
         <span class="glyphicon glyphicon-calendar"></span> Go to Today
       </button>
+      <div class="form-inline" style="display:inline-block; margin-left:12px; vertical-align:middle;">
+        <label for="session-cleaner-filter" class="control-label" style="margin-right:6px;">Sessions cleaner</label>
+        <select id="session-cleaner-filter" class="form-control input-sm" style="min-width:180px;">
+          <option value="">All cleaners</option>
+          <option value="__unassigned">Unassigned sessions</option>
+        </select>
+      </div>
+      <span class="text-muted" id="filter-summary" style="margin-left:10px;"></span>
       <span class="text-muted" id="last-updated" style="margin-left:10px;"></span>
     </div>
   </div>
@@ -99,6 +107,8 @@
   var API = window.location.origin;
   var cleaners = [];
   var saveGroups = {};
+  var checkoutData = [];
+  var selectedSessionCleanerId = '';
 
   function escapeHtml(text) {
     return String(text == null ? '' : text)
@@ -154,6 +164,34 @@
 
   function clearError() {
     document.getElementById('alerts').innerHTML = '';
+  }
+
+  function renderSessionCleanerFilterOptions() {
+    var select = document.getElementById('session-cleaner-filter');
+    var currentValue = select.value || selectedSessionCleanerId;
+    var options = '<option value="">All cleaners</option>' +
+      '<option value="__unassigned">Unassigned sessions</option>';
+
+    options += cleaners.map(function(cleaner) {
+      return '<option value="' + escapeHtml(cleaner.id) + '">' + escapeHtml(cleaner.name) + '</option>';
+    }).join('');
+
+    select.innerHTML = options;
+    select.value = currentValue;
+    if (select.value !== currentValue) {
+      select.value = '';
+      selectedSessionCleanerId = '';
+    }
+  }
+
+  function sessionsMatchCleanerFilter(sessions) {
+    if (!selectedSessionCleanerId) return true;
+    if (selectedSessionCleanerId === '__unassigned') {
+      return !sessions || sessions.length === 0;
+    }
+    return (sessions || []).some(function(session) {
+      return session && String(session.cleaner_id) === String(selectedSessionCleanerId);
+    });
   }
 
   function scrollCheckoutDateToToday() {
@@ -235,7 +273,117 @@
         }).filter(function(item) {
           return item.id != null;
         });
+        renderSessionCleanerFilterOptions();
       });
+  }
+
+  function renderCheckoutRows(data) {
+    var tbody = document.getElementById('checkout-body');
+    saveGroups = {};
+
+    var rows = [];
+    var rowCounter = 0;
+    var totalRows = 0;
+    var visibleRows = 0;
+
+    (data || []).forEach(function(day) {
+      (day.by_property || []).forEach(function(group) {
+        var bookings = group.bookings || [];
+        var confirmationCodes = bookings
+          .map(function(booking) { return booking.confirmation_code; })
+          .filter(function(code) { return !!code; })
+          .filter(function(code, index, arr) { return arr.indexOf(code) === index; });
+        var sessions = [];
+        bookings.forEach(function(booking) {
+          if (booking.sessions && booking.sessions.length) {
+            sessions = sessions.concat(booking.sessions);
+          }
+        });
+        sessions = uniqueSessionsById(sessions);
+        totalRows += 1;
+
+        if (!sessionsMatchCleanerFilter(sessions)) {
+          return;
+        }
+        visibleRows += 1;
+        rowCounter += 1;
+        var rowKey = 'group-' + rowCounter;
+
+        rows.push(
+          '<tr data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
+            '<td>' + escapeHtml(day.total) + '</td>' +
+            '<td>' + escapeHtml(day.checkout_date) + '</td>' +
+            '<td>' + escapeHtml(group.property) + '</td>' +
+            '<td>' + escapeHtml(group.count) + '</td>' +
+            '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
+            '<td>' + sessionText(sessions) + '</td>' +
+            '<td>' + sessionTimeText(sessions) + '</td>' +
+            '<td>' + sessionFixCostText(sessions) + '</td>' +
+            '<td>' + cleanerSelectHtml(group.property, day.checkout_date, rowKey, sessions) + '</td>' +
+            '<td>' + actionButtonHtml({
+              property: group.property,
+              confirmation_codes: confirmationCodes,
+              checkout_date: day.checkout_date,
+              session_id: sessions.length ? sessions[0].session_id : null
+            }, rowKey) + '</td>' +
+            '<td>' + deleteButtonHtml({
+              property: group.property,
+              confirmation_codes: confirmationCodes,
+              checkout_date: day.checkout_date,
+              sessions: sessions
+            }, rowKey) + '</td>' +
+          '</tr>'
+        );
+      });
+
+      (day.unassigned || []).forEach(function(booking) {
+        var unassignedSessions = uniqueSessionsById(booking.sessions || []);
+        totalRows += 1;
+
+        if (!sessionsMatchCleanerFilter(unassignedSessions)) {
+          return;
+        }
+        visibleRows += 1;
+        rowCounter += 1;
+        var unassignedRowKey = 'group-' + rowCounter;
+
+        rows.push(
+          '<tr class="warning" data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
+            '<td>' + escapeHtml(day.total) + '</td>' +
+            '<td>' + escapeHtml(day.checkout_date) + '</td>' +
+            '<td><span class="label label-warning">Unassigned property</span></td>' +
+            '<td>-</td>' +
+            '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
+            '<td>' + sessionText(unassignedSessions) + '</td>' +
+            '<td>' + sessionTimeText(unassignedSessions) + '</td>' +
+            '<td>' + sessionFixCostText(unassignedSessions) + '</td>' +
+            '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date, unassignedRowKey, unassignedSessions) + '</td>' +
+            '<td>' + actionButtonHtml({
+              property: 'unassigned:' + booking.confirmation_code,
+              confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
+              checkout_date: day.checkout_date,
+              session_id: unassignedSessions.length ? unassignedSessions[0].session_id : null
+            }, unassignedRowKey) + '</td>' +
+            '<td>' + deleteButtonHtml({
+              property: 'unassigned:' + booking.confirmation_code,
+              confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
+              checkout_date: day.checkout_date,
+              sessions: unassignedSessions
+            }, unassignedRowKey) + '</td>' +
+          '</tr>'
+        );
+      });
+    });
+
+    if (rows.length === 0) {
+      var emptyMessage = selectedSessionCleanerId ? 'No checkout rows match this sessions cleaner filter.' : 'No checkout data found.';
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">' + emptyMessage + '</td></tr>';
+    } else {
+      tbody.innerHTML = rows.join('');
+    }
+
+    var summary = document.getElementById('filter-summary');
+    summary.textContent = selectedSessionCleanerId ? 'Showing ' + visibleRows + ' of ' + totalRows + ' rows' : '';
   }
 
   function loadCheckout() {
@@ -246,95 +394,9 @@
     $.getJSON(API + '/bookings/checkout/')
       .done(function(data) {
         clearError();
+        checkoutData = data || [];
         document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleString();
-
-        var rows = [];
-        var rowCounter = 0;
-
-        data.forEach(function(day) {
-          (day.by_property || []).forEach(function(group) {
-            var bookings = group.bookings || [];
-            var confirmationCodes = bookings
-              .map(function(booking) { return booking.confirmation_code; })
-              .filter(function(code) { return !!code; })
-              .filter(function(code, index, arr) { return arr.indexOf(code) === index; });
-            var sessions = [];
-            bookings.forEach(function(booking) {
-              if (booking.sessions && booking.sessions.length) {
-                sessions = sessions.concat(booking.sessions);
-              }
-            });
-            sessions = uniqueSessionsById(sessions);
-
-            rowCounter += 1;
-            var rowKey = 'group-' + rowCounter;
-
-            rows.push(
-              '<tr data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
-                '<td>' + escapeHtml(day.total) + '</td>' +
-                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
-                '<td>' + escapeHtml(group.property) + '</td>' +
-                '<td>' + escapeHtml(group.count) + '</td>' +
-                '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
-                '<td>' + sessionText(sessions) + '</td>' +
-                '<td>' + sessionTimeText(sessions) + '</td>' +
-                '<td>' + sessionFixCostText(sessions) + '</td>' +
-                '<td>' + cleanerSelectHtml(group.property, day.checkout_date, rowKey, sessions) + '</td>' +
-                '<td>' + actionButtonHtml({
-                  property: group.property,
-                  confirmation_codes: confirmationCodes,
-                  checkout_date: day.checkout_date,
-                  session_id: sessions.length ? sessions[0].session_id : null
-                }, rowKey) + '</td>' +
-                '<td>' + deleteButtonHtml({
-                  property: group.property,
-                  confirmation_codes: confirmationCodes,
-                  checkout_date: day.checkout_date,
-                  sessions: sessions
-                }, rowKey) + '</td>' +
-              '</tr>'
-            );
-          });
-
-          (day.unassigned || []).forEach(function(booking) {
-            var unassignedSessions = uniqueSessionsById(booking.sessions || []);
-            rowCounter += 1;
-            var unassignedRowKey = 'group-' + rowCounter;
-
-            rows.push(
-              '<tr class="warning" data-checkout-date="' + escapeHtml(day.checkout_date) + '">' +
-                '<td>' + escapeHtml(day.total) + '</td>' +
-                '<td>' + escapeHtml(day.checkout_date) + '</td>' +
-                '<td><span class="label label-warning">Unassigned property</span></td>' +
-                '<td>-</td>' +
-                '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
-                '<td>' + sessionText(unassignedSessions) + '</td>' +
-                '<td>' + sessionTimeText(unassignedSessions) + '</td>' +
-                '<td>' + sessionFixCostText(unassignedSessions) + '</td>' +
-                '<td>' + cleanerSelectHtml('unassigned:' + booking.confirmation_code, day.checkout_date, unassignedRowKey, unassignedSessions) + '</td>' +
-                '<td>' + actionButtonHtml({
-                  property: 'unassigned:' + booking.confirmation_code,
-                  confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
-                  checkout_date: day.checkout_date,
-                  session_id: unassignedSessions.length ? unassignedSessions[0].session_id : null
-                }, unassignedRowKey) + '</td>' +
-                '<td>' + deleteButtonHtml({
-                  property: 'unassigned:' + booking.confirmation_code,
-                  confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
-                  checkout_date: day.checkout_date,
-                  sessions: unassignedSessions
-                }, unassignedRowKey) + '</td>' +
-              '</tr>'
-            );
-          });
-        });
-
-        if (rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No checkout data found.</td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = rows.join('');
+        renderCheckoutRows(checkoutData);
       })
       .fail(function(xhr) {
         var message = 'Could not load /bookings/checkout/';
@@ -523,6 +585,11 @@
 
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
   document.getElementById('scroll-today-btn').addEventListener('click', scrollCheckoutDateToToday);
+  document.getElementById('session-cleaner-filter').addEventListener('change', function(event) {
+    selectedSessionCleanerId = event.target.value;
+    renderCheckoutRows(checkoutData);
+  });
+  renderSessionCleanerFilterOptions();
   loadCleaners()
     .done(loadCheckout)
     .fail(function(xhr) {
