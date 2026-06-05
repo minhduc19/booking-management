@@ -37,6 +37,9 @@
       <button class="btn btn-default" id="scroll-today-btn" style="margin-left:8px;">
         <span class="glyphicon glyphicon-calendar"></span> Go to Today
       </button>
+      <button class="btn btn-default" id="this-week-btn" style="margin-left:8px;">
+        <span class="glyphicon glyphicon-filter"></span> This week
+      </button>
       <div class="form-inline" style="display:inline-block; margin-left:12px; vertical-align:middle;">
         <label for="session-cleaner-filter" class="control-label" style="margin-right:6px;">Sessions cleaner</label>
         <select id="session-cleaner-filter" class="form-control input-sm" style="min-width:180px;">
@@ -109,6 +112,7 @@
   var saveGroups = {};
   var checkoutData = [];
   var selectedSessionCleanerId = '';
+  var thisWeekFilterActive = false;
 
   function escapeHtml(text) {
     return String(text == null ? '' : text)
@@ -192,6 +196,55 @@
     return (sessions || []).some(function(session) {
       return session && String(session.cleaner_id) === String(selectedSessionCleanerId);
     });
+  }
+
+  function dateFromIso(isoDate) {
+    var parts = String(isoDate || '').split('-');
+    if (parts.length !== 3) return null;
+
+    var year = Number(parts[0]);
+    var month = Number(parts[1]);
+    var day = Number(parts[2]);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+
+    return new Date(year, month - 1, day);
+  }
+
+  function getThisWeekRange() {
+    var today = new Date();
+    var start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    var daysSinceMonday = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - daysSinceMonday);
+
+    var end = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    end.setDate(start.getDate() + 6);
+
+    return { start: start, end: end };
+  }
+
+  function checkoutDateMatchesThisWeek(checkoutDate) {
+    if (!thisWeekFilterActive) return true;
+
+    var date = dateFromIso(checkoutDate);
+    if (!date) return false;
+
+    var range = getThisWeekRange();
+    return date >= range.start && date <= range.end;
+  }
+
+  function updateThisWeekButton() {
+    var button = document.getElementById('this-week-btn');
+    if (!button) return;
+
+    button.classList.toggle('btn-info', thisWeekFilterActive);
+    button.classList.toggle('btn-default', !thisWeekFilterActive);
+    button.setAttribute('aria-pressed', thisWeekFilterActive ? 'true' : 'false');
+  }
+
+  function toggleThisWeekFilter() {
+    thisWeekFilterActive = !thisWeekFilterActive;
+    updateThisWeekButton();
+    renderCheckoutRows(checkoutData);
   }
 
   function scrollCheckoutDateToToday() {
@@ -302,7 +355,7 @@
         sessions = uniqueSessionsById(sessions);
         totalRows += 1;
 
-        if (!sessionsMatchCleanerFilter(sessions)) {
+        if (!checkoutDateMatchesThisWeek(day.checkout_date) || !sessionsMatchCleanerFilter(sessions)) {
           return;
         }
         visibleRows += 1;
@@ -340,7 +393,7 @@
         var unassignedSessions = uniqueSessionsById(booking.sessions || []);
         totalRows += 1;
 
-        if (!sessionsMatchCleanerFilter(unassignedSessions)) {
+        if (!checkoutDateMatchesThisWeek(day.checkout_date) || !sessionsMatchCleanerFilter(unassignedSessions)) {
           return;
         }
         visibleRows += 1;
@@ -376,14 +429,21 @@
     });
 
     if (rows.length === 0) {
-      var emptyMessage = selectedSessionCleanerId ? 'No checkout rows match this sessions cleaner filter.' : 'No checkout data found.';
+      var emptyMessage = 'No checkout data found.';
+      if (thisWeekFilterActive && selectedSessionCleanerId) {
+        emptyMessage = 'No checkout rows match this week and sessions cleaner filters.';
+      } else if (thisWeekFilterActive) {
+        emptyMessage = 'No checkout rows match this week filter.';
+      } else if (selectedSessionCleanerId) {
+        emptyMessage = 'No checkout rows match this sessions cleaner filter.';
+      }
       tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">' + emptyMessage + '</td></tr>';
     } else {
       tbody.innerHTML = rows.join('');
     }
 
     var summary = document.getElementById('filter-summary');
-    summary.textContent = selectedSessionCleanerId ? 'Showing ' + visibleRows + ' of ' + totalRows + ' rows' : '';
+    summary.textContent = (selectedSessionCleanerId || thisWeekFilterActive) ? 'Showing ' + visibleRows + ' of ' + totalRows + ' rows' : '';
   }
 
   function loadCheckout() {
@@ -585,10 +645,12 @@
 
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
   document.getElementById('scroll-today-btn').addEventListener('click', scrollCheckoutDateToToday);
+  document.getElementById('this-week-btn').addEventListener('click', toggleThisWeekFilter);
   document.getElementById('session-cleaner-filter').addEventListener('change', function(event) {
     selectedSessionCleanerId = event.target.value;
     renderCheckoutRows(checkoutData);
   });
+  updateThisWeekButton();
   renderSessionCleanerFilterOptions();
   loadCleaners()
     .done(loadCheckout)
