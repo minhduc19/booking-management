@@ -110,6 +110,12 @@ async def read_cleaner():
         html_content = f.read()
     return HTMLResponse(content=html_content)
 
+@app.get("/index-bookings", response_class=HTMLResponse)
+async def read_bookings():
+    with open("frontend/bookings.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
 @app.get("/")
 def read_root():
     return {"message": "Changed to private repository"}
