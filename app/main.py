@@ -216,11 +216,24 @@ def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
 
 
 
-@app.delete("/bookings/")
-def delete_all_bookings(db: Session = Depends(get_db)):
-    deleted = db.query(models.Booking).delete()
+@app.delete("/bookings/{confirmation_code}")
+def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
+    booking = db.query(models.Booking).filter(
+        models.Booking.confirmation_code == confirmation_code
+    ).first()
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    deleted_session_bookings = db.query(models.SessionBooking).filter(
+        models.SessionBooking.confirmation_code == confirmation_code
+    ).delete(synchronize_session=False)
+
+    db.delete(booking)
     db.commit()
-    return {"deleted": deleted}
+    return {
+        "deleted": confirmation_code,
+        "deleted_session_bookings": deleted_session_bookings,
+    }
 
 
 
