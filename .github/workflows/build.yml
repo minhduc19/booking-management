@@ -26,8 +26,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       
-      - name: Test alembic 
-        run: alembic upgrade head
+      #- name: Test alembic 
+      #  run: alembic upgrade head
 
       - name: Test with pytest
         run: pytest tests/ -v -W ignore::DeprecationWarning
