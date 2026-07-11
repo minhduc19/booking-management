@@ -105,6 +105,70 @@
   </div>
 </div>
 
+<div id="edit-session-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="edit-session-modal-title">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="edit-session-modal-title">Edit cleaning session</h4>
+      </div>
+      <div class="modal-body">
+        <div id="edit-session-alert"></div>
+        <form id="edit-session-form">
+          <input id="edit-session-id" type="hidden">
+          <div class="row">
+            <div class="col-sm-4">
+              <label for="edit-cleaner-id">Cleaner</label>
+              <select id="edit-cleaner-id" class="form-control input-sm"></select>
+            </div>
+            <div class="col-sm-4">
+              <label for="edit-clean-date">Clean Date</label>
+              <input id="edit-clean-date" type="date" class="form-control input-sm">
+            </div>
+            <div class="col-sm-4">
+              <label for="edit-paid-status" style="display:block;">Paid Status</label>
+              <label class="checkbox-inline">
+                <input id="edit-paid-status" type="checkbox"> Paid
+              </label>
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px;">
+            <div class="col-sm-3">
+              <label for="edit-hours">Hours</label>
+              <input id="edit-hours" type="number" class="form-control input-sm" min="0" value="0">
+            </div>
+            <div class="col-sm-3">
+              <label for="edit-minutes">Minutes</label>
+              <input id="edit-minutes" type="number" class="form-control input-sm" min="0" max="59" value="0">
+            </div>
+            <div class="col-sm-3">
+              <label for="edit-fix-cost">Fixed Cost</label>
+              <input id="edit-fix-cost" type="number" class="form-control input-sm" min="0" step="0.01" value="0">
+            </div>
+            <div class="col-sm-3">
+              <label for="edit-confirmation-codes">Confirmation Codes</label>
+              <input id="edit-confirmation-codes" type="text" class="form-control input-sm" placeholder="CODE1, CODE2">
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px;">
+            <div class="col-sm-12">
+              <label for="edit-notes">Notes</label>
+              <input id="edit-notes" type="text" class="form-control input-sm" placeholder="Optional notes">
+            </div>
+          </div>
+        </form>
+        <hr>
+        <h5><strong>All sessions for this cleaner on this date</strong></h5>
+        <div id="edit-session-related"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="edit-session-save-btn">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   // Use the backend that served this page (local, staging, or production).
   var API = window.location.origin;
@@ -127,7 +191,11 @@
     if (!sessions || sessions.length === 0) return '<span class="label label-default">Unassigned</span>';
     return sessions.map(function(s) {
       var cleaner = s.cleaner_name ? escapeHtml(s.cleaner_name) : 'Unknown';
-      return '<span class="label label-info" style="margin-right:4px; display:inline-block; margin-bottom:3px;">#' + s.session_id + ' - ' + cleaner + '</span>';
+      return '<button type="button" class="btn btn-info btn-xs edit-session-btn" ' +
+        'style="margin-right:4px; margin-bottom:3px;" ' +
+        'data-session-id="' + escapeHtml(s.session_id) + '">' +
+        '#' + escapeHtml(s.session_id) + ' - ' + cleaner +
+      '</button>';
     }).join('');
   }
 
@@ -159,6 +227,213 @@
       seen[session.session_id] = true;
       return true;
     });
+  }
+
+  function cleanerOptionsHtml(selectedCleanerId) {
+    var options = '<option value=""></option>';
+    options += cleaners.map(function(cleaner) {
+      var selected = selectedCleanerId != null && String(cleaner.id) === String(selectedCleanerId);
+      return '<option value="' + escapeHtml(cleaner.id) + '"' + (selected ? ' selected' : '') + '>' + escapeHtml(cleaner.name) + '</option>';
+    }).join('');
+    return options;
+  }
+
+  function normalizeSession(session, checkoutDate, confirmationCode) {
+    var copy = {};
+    Object.keys(session || {}).forEach(function(key) {
+      copy[key] = session[key];
+    });
+    copy.clean_date = copy.clean_date || checkoutDate;
+    copy.confirmation_codes = copy.confirmation_codes || [];
+    if (confirmationCode && copy.confirmation_codes.indexOf(confirmationCode) === -1) {
+      copy.confirmation_codes.push(confirmationCode);
+    }
+    return copy;
+  }
+
+  function collectCheckoutSessions() {
+    var sessionMap = {};
+    (checkoutData || []).forEach(function(day) {
+      (day.by_property || []).forEach(function(group) {
+        (group.bookings || []).forEach(function(booking) {
+          (booking.sessions || []).forEach(function(session) {
+            if (!session || session.session_id == null) return;
+            var sessionId = String(session.session_id);
+            if (!sessionMap[sessionId]) {
+              sessionMap[sessionId] = normalizeSession(session, day.checkout_date, booking.confirmation_code);
+            } else if (booking.confirmation_code && sessionMap[sessionId].confirmation_codes.indexOf(booking.confirmation_code) === -1) {
+              sessionMap[sessionId].confirmation_codes.push(booking.confirmation_code);
+            }
+          });
+        });
+      });
+
+      (day.unassigned || []).forEach(function(booking) {
+        (booking.sessions || []).forEach(function(session) {
+          if (!session || session.session_id == null) return;
+          var sessionId = String(session.session_id);
+          if (!sessionMap[sessionId]) {
+            sessionMap[sessionId] = normalizeSession(session, day.checkout_date, booking.confirmation_code);
+          } else if (booking.confirmation_code && sessionMap[sessionId].confirmation_codes.indexOf(booking.confirmation_code) === -1) {
+            sessionMap[sessionId].confirmation_codes.push(booking.confirmation_code);
+          }
+        });
+      });
+    });
+    return sessionMap;
+  }
+
+  function findCheckoutSession(sessionId) {
+    return collectCheckoutSessions()[String(sessionId)] || null;
+  }
+
+  function sessionsForCleanerDate(cleanerId, cleanDate) {
+    var sessionMap = collectCheckoutSessions();
+    return Object.keys(sessionMap).map(function(sessionId) {
+      return sessionMap[sessionId];
+    }).filter(function(session) {
+      return String(session.cleaner_id) === String(cleanerId) && String(session.clean_date) === String(cleanDate);
+    });
+  }
+
+  function showEditSessionAlert(type, message) {
+    document.getElementById('edit-session-alert').innerHTML =
+      '<div class="alert alert-' + type + '" style="margin-bottom:12px;">' + escapeHtml(message) + '</div>';
+  }
+
+  function clearEditSessionAlert() {
+    document.getElementById('edit-session-alert').innerHTML = '';
+  }
+
+  function renderRelatedCleanerSessions(cleanerId, cleanDate, activeSessionId) {
+    var sessions = sessionsForCleanerDate(cleanerId, cleanDate);
+    if (!sessions.length) {
+      document.getElementById('edit-session-related').innerHTML = '<p class="text-muted">No other sessions found.</p>';
+      return;
+    }
+
+    var rows = sessions.map(function(session) {
+      var isActive = String(session.session_id) === String(activeSessionId);
+      var hours = Number.isFinite(Number(session.hours)) ? Math.max(0, Math.floor(Number(session.hours))) : 0;
+      var minutes = Number.isFinite(Number(session.minutes)) ? Math.max(0, Math.floor(Number(session.minutes))) : 0;
+      minutes = Math.min(59, minutes);
+      var fixCost = Number.isFinite(Number(session.fix_cost)) ? Math.max(0, Number(session.fix_cost)) : 0;
+      return '<tr' + (isActive ? ' class="info"' : '') + '>' +
+        '<td>#' + escapeHtml(session.session_id) + (isActive ? ' <span class="label label-primary">editing</span>' : '') + '</td>' +
+        '<td>' + escapeHtml(session.cleaner_name || 'Unknown') + '</td>' +
+        '<td>' + escapeHtml(String(hours) + 'h ' + String(minutes).padStart(2, '0') + 'm') + '</td>' +
+        '<td>£' + escapeHtml(fixCost.toFixed(2)) + '</td>' +
+        '<td>' + (session.paid_status ? '<span class="label label-success">Paid</span>' : '<span class="label label-default">Unpaid</span>') + '</td>' +
+        '<td>' + escapeHtml((session.confirmation_codes || []).join(', ')) + '</td>' +
+        '<td>' + escapeHtml(session.notes || '') + '</td>' +
+      '</tr>';
+    }).join('');
+
+    document.getElementById('edit-session-related').innerHTML =
+      '<div class="table-responsive">' +
+        '<table class="table table-condensed table-bordered" style="margin-bottom:0;">' +
+          '<thead><tr><th>Session</th><th>Cleaner</th><th>Time</th><th>Fix Cost</th><th>Paid</th><th>Bookings</th><th>Notes</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>';
+  }
+
+  function openEditSessionModal(sessionId) {
+    var session = findCheckoutSession(sessionId);
+    if (!session) {
+      showError('Could not find session #' + sessionId + '. Please reload and try again.');
+      return;
+    }
+
+    clearEditSessionAlert();
+    document.getElementById('edit-session-modal-title').textContent =
+      'Edit session #' + session.session_id + ' - ' + (session.cleaner_name || 'Unknown');
+    document.getElementById('edit-session-id').value = session.session_id;
+    document.getElementById('edit-cleaner-id').innerHTML = cleanerOptionsHtml(session.cleaner_id);
+    document.getElementById('edit-clean-date').value = session.clean_date || '';
+    document.getElementById('edit-hours').value = Number.isFinite(Number(session.hours)) ? Math.max(0, Math.floor(Number(session.hours))) : 0;
+    document.getElementById('edit-minutes').value = Number.isFinite(Number(session.minutes)) ? Math.min(59, Math.max(0, Math.floor(Number(session.minutes)))) : 0;
+    document.getElementById('edit-fix-cost').value = Number.isFinite(Number(session.fix_cost)) ? Math.max(0, Number(session.fix_cost)).toFixed(2) : '0.00';
+    document.getElementById('edit-paid-status').checked = !!session.paid_status;
+    document.getElementById('edit-confirmation-codes').value = (session.confirmation_codes || []).join(', ');
+    document.getElementById('edit-notes').value = session.notes || '';
+    renderRelatedCleanerSessions(session.cleaner_id, session.clean_date, session.session_id);
+    $('#edit-session-modal').modal('show');
+  }
+
+  function modalSessionDetails() {
+    var hoursRaw = Number(document.getElementById('edit-hours').value || 0);
+    var minutesRaw = Number(document.getElementById('edit-minutes').value || 0);
+    var fixCostRaw = Number(document.getElementById('edit-fix-cost').value || 0);
+    var hours = Number.isFinite(hoursRaw) ? Math.max(0, Math.floor(hoursRaw)) : 0;
+    var minutes = Number.isFinite(minutesRaw) ? Math.min(59, Math.max(0, Math.floor(minutesRaw))) : 0;
+    var fixCost = Number.isFinite(fixCostRaw) ? Math.max(0, fixCostRaw) : 0;
+    var confirmationCodes = document.getElementById('edit-confirmation-codes').value
+      .split(',')
+      .map(function(code) { return code.trim(); })
+      .filter(function(code) { return !!code; });
+
+    return {
+      cleaner_id: Number(document.getElementById('edit-cleaner-id').value),
+      clean_date: document.getElementById('edit-clean-date').value,
+      hours: hours,
+      minutes: minutes,
+      notes: document.getElementById('edit-notes').value || '',
+      fix_cost: fixCost,
+      paid_status: document.getElementById('edit-paid-status').checked,
+      confirmation_codes: confirmationCodes
+    };
+  }
+
+  function saveEditSessionModal() {
+    var sessionId = document.getElementById('edit-session-id').value;
+    var payload = modalSessionDetails();
+    if (!sessionId) {
+      showEditSessionAlert('danger', 'Missing session id.');
+      return;
+    }
+    if (!payload.cleaner_id) {
+      showEditSessionAlert('danger', 'Please select a cleaner.');
+      return;
+    }
+    if (!payload.clean_date) {
+      showEditSessionAlert('danger', 'Please choose a clean date.');
+      return;
+    }
+    if (!payload.confirmation_codes.length) {
+      showEditSessionAlert('danger', 'Please enter at least one confirmation code.');
+      return;
+    }
+
+    var button = document.getElementById('edit-session-save-btn');
+    button.disabled = true;
+    button.textContent = 'Saving...';
+    clearEditSessionAlert();
+
+    $.ajax({
+      url: API + '/cleaning-sessions/' + encodeURIComponent(String(sessionId)),
+      method: 'PATCH',
+      contentType: 'application/json',
+      data: JSON.stringify(payload)
+    })
+      .done(function() {
+        $('#edit-session-modal').modal('hide');
+        clearError();
+        loadCheckout();
+      })
+      .fail(function(xhr) {
+        var message = 'Could not update session';
+        if (xhr && xhr.responseJSON && xhr.responseJSON.detail) {
+          message += ': ' + xhr.responseJSON.detail;
+        } else if (xhr && xhr.status) {
+          message += ' (HTTP ' + xhr.status + ')';
+        }
+        showEditSessionAlert('danger', message);
+      })
+      .always(function() {
+        button.disabled = false;
+        button.textContent = 'Save changes';
+      });
   }
 
   function showError(message) {
@@ -615,6 +890,12 @@
   }
 
   document.getElementById('checkout-body').addEventListener('click', function(event) {
+    var editBtn = event.target.closest('.edit-session-btn');
+    if (editBtn) {
+      openEditSessionModal(editBtn.getAttribute('data-session-id'));
+      return;
+    }
+
     var saveBtn = event.target.closest('.save-session-btn');
     if (saveBtn) {
       var groupKeyValue = saveBtn.getAttribute('data-group-key');
@@ -644,6 +925,23 @@
   });
 
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
+  document.getElementById('edit-session-save-btn').addEventListener('click', saveEditSessionModal);
+  document.getElementById('edit-cleaner-id').addEventListener('change', function() {
+    var cleanerId = document.getElementById('edit-cleaner-id').value;
+    var cleanDate = document.getElementById('edit-clean-date').value;
+    var sessionId = document.getElementById('edit-session-id').value;
+    if (cleanerId && cleanDate && sessionId) {
+      renderRelatedCleanerSessions(cleanerId, cleanDate, sessionId);
+    }
+  });
+  document.getElementById('edit-clean-date').addEventListener('change', function() {
+    var cleanerId = document.getElementById('edit-cleaner-id').value;
+    var cleanDate = document.getElementById('edit-clean-date').value;
+    var sessionId = document.getElementById('edit-session-id').value;
+    if (cleanerId && cleanDate && sessionId) {
+      renderRelatedCleanerSessions(cleanerId, cleanDate, sessionId);
+    }
+  });
   document.getElementById('scroll-today-btn').addEventListener('click', scrollCheckoutDateToToday);
   document.getElementById('this-week-btn').addEventListener('click', toggleThisWeekFilter);
   document.getElementById('session-cleaner-filter').addEventListener('change', function(event) {
