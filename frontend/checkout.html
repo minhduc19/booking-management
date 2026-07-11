@@ -326,13 +326,18 @@
         '<td>' + (session.paid_status ? '<span class="label label-success">Paid</span>' : '<span class="label label-default">Unpaid</span>') + '</td>' +
         '<td>' + escapeHtml((session.confirmation_codes || []).join(', ')) + '</td>' +
         '<td>' + escapeHtml(session.notes || '') + '</td>' +
+        '<td>' +
+          '<button type="button" class="btn btn-danger btn-xs modal-delete-session-btn" ' +
+            'data-session-id="' + escapeHtml(session.session_id) + '" ' +
+            'data-session-label="#' + escapeHtml(session.session_id) + '">Delete</button>' +
+        '</td>' +
       '</tr>';
     }).join('');
 
     document.getElementById('edit-session-related').innerHTML =
       '<div class="table-responsive">' +
         '<table class="table table-condensed table-bordered" style="margin-bottom:0;">' +
-          '<thead><tr><th>Session</th><th>Cleaner</th><th>Time</th><th>Fix Cost</th><th>Paid</th><th>Bookings</th><th>Notes</th></tr></thead>' +
+          '<thead><tr><th>Session</th><th>Cleaner</th><th>Time</th><th>Fix Cost</th><th>Paid</th><th>Bookings</th><th>Notes</th><th>Action</th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
         '</table>' +
       '</div>';
@@ -383,6 +388,56 @@
       paid_status: document.getElementById('edit-paid-status').checked,
       confirmation_codes: confirmationCodes
     };
+  }
+
+  function deleteCleaningSessionFromModal(sessionId, buttonEl) {
+    if (!sessionId) {
+      showEditSessionAlert('danger', 'Missing session id.');
+      return;
+    }
+
+    if (!window.confirm('Delete cleaning session #' + sessionId + '? This cannot be undone.')) {
+      return;
+    }
+
+    var activeSessionId = document.getElementById('edit-session-id').value;
+    var cleanerId = document.getElementById('edit-cleaner-id').value;
+    var cleanDate = document.getElementById('edit-clean-date').value;
+    var originalText = buttonEl ? buttonEl.textContent : '';
+    if (buttonEl) {
+      buttonEl.disabled = true;
+      buttonEl.textContent = 'Deleting...';
+    }
+    clearEditSessionAlert();
+
+    $.ajax({
+      url: API + '/cleaning-sessions/' + encodeURIComponent(String(sessionId)),
+      method: 'DELETE'
+    })
+      .done(function() {
+        clearError();
+        if (String(sessionId) === String(activeSessionId)) {
+          $('#edit-session-modal').modal('hide');
+        } else if (cleanerId && cleanDate && activeSessionId) {
+          renderRelatedCleanerSessions(cleanerId, cleanDate, activeSessionId);
+        }
+        loadCheckout();
+      })
+      .fail(function(xhr) {
+        var message = 'Could not delete session';
+        if (xhr && xhr.responseJSON && xhr.responseJSON.detail) {
+          message += ': ' + xhr.responseJSON.detail;
+        } else if (xhr && xhr.status) {
+          message += ' (HTTP ' + xhr.status + ')';
+        }
+        showEditSessionAlert('danger', message);
+      })
+      .always(function() {
+        if (buttonEl) {
+          buttonEl.disabled = false;
+          buttonEl.textContent = originalText || 'Delete';
+        }
+      });
   }
 
   function saveEditSessionModal() {
@@ -874,6 +929,11 @@
     }
   });
 
+  document.getElementById('edit-session-related').addEventListener('click', function(event) {
+    var deleteBtn = event.target.closest('.modal-delete-session-btn');
+    if (!deleteBtn) return;
+    deleteCleaningSessionFromModal(deleteBtn.getAttribute('data-session-id'), deleteBtn);
+  });
   document.getElementById('reload-btn').addEventListener('click', loadCheckout);
   document.getElementById('edit-session-save-btn').addEventListener('click', saveEditSessionModal);
   document.getElementById('edit-cleaner-id').addEventListener('change', function() {
