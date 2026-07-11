@@ -555,8 +555,7 @@
     var property = group && group.property;
     var checkoutDate = group && group.checkout_date;
     var bookingCodes = group && group.confirmation_codes;
-    var sessionId = group && group.session_id;
-    var buttonLabel = sessionId ? 'Update' : 'Save';
+    var buttonLabel = 'Save';
     if (!property || !checkoutDate || !bookingCodes || !bookingCodes.length) {
       return '<button type=\"button\" class=\"btn btn-default btn-xs\" disabled>' + buttonLabel + '</button>';
     }
@@ -566,8 +565,7 @@
     saveGroups[key] = {
       property: property,
       checkout_date: checkoutDate,
-      confirmation_codes: bookingCodes.slice(),
-      session_id: sessionId || null
+      confirmation_codes: bookingCodes.slice()
     };
     return '<button type=\"button\" class=\"btn btn-success btn-xs save-session-btn\" data-group-key=\"' + key + '\">' + buttonLabel + '</button>';
   }
@@ -651,8 +649,7 @@
             '<td>' + actionButtonHtml({
               property: group.property,
               confirmation_codes: confirmationCodes,
-              checkout_date: day.checkout_date,
-              session_id: sessions.length ? sessions[0].session_id : null
+              checkout_date: day.checkout_date
             }, rowKey) + '</td>' +
             '<td>' + deleteButtonHtml({
               property: group.property,
@@ -689,8 +686,7 @@
             '<td>' + actionButtonHtml({
               property: 'unassigned:' + booking.confirmation_code,
               confirmation_codes: booking.confirmation_code ? [booking.confirmation_code] : [],
-              checkout_date: day.checkout_date,
-              session_id: unassignedSessions.length ? unassignedSessions[0].session_id : null
+              checkout_date: day.checkout_date
             }, unassignedRowKey) + '</td>' +
             '<td>' + deleteButtonHtml({
               property: 'unassigned:' + booking.confirmation_code,
@@ -807,48 +803,6 @@
   }
 
 
-  function updateCleaningSession(group, cleanerId, buttonEl) {
-    var sessionId = group && group.session_id;
-    var confirmationCodes = group && group.confirmation_codes;
-    if (!sessionId || !confirmationCodes || !confirmationCodes.length) {
-      showError('Missing session id or confirmation codes for update request.');
-      return;
-    }
-
-    buttonEl.disabled = true;
-    buttonEl.textContent = 'Updating...';
-
-    var details = sessionDetails();
-
-    $.ajax({
-      url: API + '/cleaning-sessions/' + encodeURIComponent(String(sessionId)),
-      method: 'PATCH',
-      contentType: 'application/json',
-      data: JSON.stringify({
-        cleaner_id: Number(cleanerId),
-        clean_date: group.checkout_date,
-        hours: details.hours,
-        minutes: details.minutes,
-        notes: details.notes,
-        fix_cost: details.fix_cost,
-        confirmation_codes: confirmationCodes
-      })
-    })
-      .done(function() {
-        buttonEl.textContent = 'Updated';
-        loadCheckout();
-      })
-      .fail(function(xhr) {
-        var message = 'Could not update session';
-        if (xhr && xhr.status) {
-          message += ' (HTTP ' + xhr.status + ')';
-        }
-        showError(message);
-        buttonEl.disabled = false;
-        buttonEl.textContent = 'Update';
-      });
-  }
-
   function deleteSessionsForGroup(groupKeyValue, buttonEl) {
     var group = saveGroups[groupKeyValue];
     if (!group || !group.confirmation_codes || !group.confirmation_codes.length) {
@@ -909,11 +863,7 @@
         showError('Please select a cleaner.');
         return;
       }
-      if (group.session_id) {
-        updateCleaningSession(group, select.value, saveBtn);
-      } else {
-        saveCleaningSession(group, select.value, saveBtn);
-      }
+      saveCleaningSession(group, select.value, saveBtn);
       return;
     }
 
