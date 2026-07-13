@@ -39,6 +39,7 @@ class Booking(Base):
     id = Column(Integer, primary_key=True, index=True)
     confirmation_code = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, nullable=False)
+    archive_status = Column(String, nullable=True)
     guest_name = Column(String, nullable=False)
     contact = Column(String, nullable=True)
     adults = Column(Integer, default=0)
