@@ -20,9 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    pass
+    op.add_column("bookings", sa.Column("archive_status", sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    op.drop_column("bookings", "archive_status")
