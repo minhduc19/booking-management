@@ -182,6 +182,14 @@
       '<p style="margin-bottom:0;"><strong>Rate:</strong> £' + escapeHtml(cleaner.rate || 0) + '/hour</p>';
   }
 
+  function selectAllUnpaidSessions() {
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.paid-session-checkbox:not(:disabled)'));
+
+    checkboxes.forEach(function(checkbox) {
+      checkbox.checked = true;
+    });
+  }
+
   function updateSelectedSessionsPaidStatus() {
     clearError();
 
@@ -267,6 +275,7 @@
     container.innerHTML =
       '<div class="clearfix" style="margin-bottom:10px;">' +
         '<button type="button" class="btn btn-success btn-sm pull-right" id="update-paid-btn">Mark Selected Paid</button>' +
+        '<button type="button" class="btn btn-default btn-sm pull-right" id="select-all-paid-btn" style="margin-right:8px;">Select All</button>' +
         '<p class="text-muted" style="margin:6px 0 0;">Uses PATCH /cleaning-sessions/{session_id} with <code>{ paid_status: true }</code>.</p>' +
       '</div>' +
       '<div class="table-responsive">' +
@@ -295,6 +304,10 @@
 
   document.getElementById('fetch-btn').addEventListener('click', fetchSessions);
   document.getElementById('sessions').addEventListener('click', function(event) {
+    if (event.target && event.target.id === 'select-all-paid-btn') {
+      selectAllUnpaidSessions();
+    }
+
     if (event.target && event.target.id === 'update-paid-btn') {
       updateSelectedSessionsPaidStatus();
     }
