@@ -8,7 +8,7 @@ router = APIRouter(prefix="/cleaning-sessions", tags=["cleaning-sessions"])
 
 
 @router.post("/", response_model=schemas.CleaningSessionResponse)
-def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session = Depends(get_db)):
+async def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session = Depends(get_db)):
     if not 0 <= session.minutes <= 59:
         raise HTTPException(status_code=400, detail="minutes must be between 0 and 59")
     cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == session.cleaner_id).first()
@@ -34,7 +34,7 @@ def create_cleaning_session(session: schemas.CleaningSessionCreate, db: Session 
 
 
 @router.patch("/{session_id}", response_model=schemas.CleaningSessionResponse)
-def update_cleaning_session(session_id: int, payload: schemas.CleaningSessionUpdate, db: Session = Depends(get_db)):
+async def update_cleaning_session(session_id: int, payload: schemas.CleaningSessionUpdate, db: Session = Depends(get_db)):
     session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -68,7 +68,7 @@ def update_cleaning_session(session_id: int, payload: schemas.CleaningSessionUpd
 
 
 @router.post("/{session_id}/add-booking/{confirmation_code}", response_model=schemas.CleaningSessionResponse)
-def add_booking_to_session(session_id: int, confirmation_code: str, db: Session = Depends(get_db)):
+async def add_booking_to_session(session_id: int, confirmation_code: str, db: Session = Depends(get_db)):
     session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -87,7 +87,7 @@ def add_booking_to_session(session_id: int, confirmation_code: str, db: Session 
 
 
 @router.delete("/")
-def delete_cleaning_sessions_by_confirmation_codes(
+async def delete_cleaning_sessions_by_confirmation_codes(
     payload: schemas.CleaningSessionDeleteByCodes,
     db: Session = Depends(get_db),
 ):
@@ -125,7 +125,7 @@ def delete_cleaning_sessions_by_confirmation_codes(
 
 
 @router.get("/", response_model=list[schemas.CleaningSessionResponse])
-def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(get_db)):
+async def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(get_db)):
     query = db.query(models.CleaningSession)
     if cleaner_id:
         query = query.filter(models.CleaningSession.cleaner_id == cleaner_id)
@@ -133,7 +133,7 @@ def list_cleaning_sessions(cleaner_id: int | None = None, db: Session = Depends(
 
 
 @router.get("/{session_id}", response_model=schemas.CleaningSessionResponse)
-def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
+async def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
     session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -141,7 +141,7 @@ def get_cleaning_session(session_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{session_id}")
-def delete_cleaning_session(session_id: int, db: Session = Depends(get_db)):
+async def delete_cleaning_session(session_id: int, db: Session = Depends(get_db)):
     session = db.query(models.CleaningSession).filter(models.CleaningSession.id == session_id).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
