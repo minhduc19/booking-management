@@ -707,17 +707,60 @@
   }
 
 
+  function normalizeCleaners(data) {
+    var list = Array.isArray(data) ? data : (data && Array.isArray(data.cleaners) ? data.cleaners : []);
+    var seen = {};
+
+    return list.map(function(item) {
+      var id = item && (item.cleaner_id != null ? item.cleaner_id : item.id);
+      return {
+        id: id,
+        name: item && (item.cleaner_name || item.name || ('Cleaner #' + id))
+      };
+    }).filter(function(item) {
+      if (item.id == null || seen[String(item.id)]) return false;
+      seen[String(item.id)] = true;
+      return true;
+    });
+  }
+
+  function addCheckoutCleaners(data) {
+    var existing = {};
+    cleaners.forEach(function(cleaner) {
+      existing[String(cleaner.id)] = true;
+    });
+
+    (data || []).forEach(function(day) {
+      (day.by_property || []).forEach(function(group) {
+        (group.bookings || []).forEach(function(booking) {
+          (booking.sessions || []).forEach(function(session) {
+            if (session.cleaner_id == null || existing[String(session.cleaner_id)]) return;
+            cleaners.push({
+              id: session.cleaner_id,
+              name: session.cleaner_name || ('Cleaner #' + session.cleaner_id)
+            });
+            existing[String(session.cleaner_id)] = true;
+          });
+        });
+      });
+
+      (day.unassigned || []).forEach(function(booking) {
+        (booking.sessions || []).forEach(function(session) {
+          if (session.cleaner_id == null || existing[String(session.cleaner_id)]) return;
+          cleaners.push({
+            id: session.cleaner_id,
+            name: session.cleaner_name || ('Cleaner #' + session.cleaner_id)
+          });
+          existing[String(session.cleaner_id)] = true;
+        });
+      });
+    });
+  }
+
   function loadCleaners() {
     return $.getJSON(API + '/cleaners/')
       .done(function(data) {
-        cleaners = (data || []).map(function(item) {
-          return {
-            id: item.cleaner_id || item.id,
-            name: item.cleaner_name || item.name || ('Cleaner #' + (item.cleaner_id || item.id || ''))
-          };
-        }).filter(function(item) {
-          return item.id != null;
-        });
+        cleaners = normalizeCleaners(data);
         renderSessionCleanerFilterOptions();
       });
   }
@@ -845,6 +888,8 @@
       .done(function(data) {
         clearError();
         checkoutData = data || [];
+        addCheckoutCleaners(checkoutData);
+        renderSessionCleanerFilterOptions();
         document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleString();
         renderCheckoutRows(checkoutData);
       })
@@ -1000,7 +1045,9 @@
     if (!deleteBtn) return;
     deleteCleaningSessionFromModal(deleteBtn.getAttribute('data-session-id'), deleteBtn);
   });
-  document.getElementById('reload-btn').addEventListener('click', loadCheckout);
+  document.getElementById('reload-btn').addEventListener('click', function() {
+    loadCleaners().always(loadCheckout);
+  });
   document.getElementById('edit-session-save-btn').addEventListener('click', saveEditSessionModal);
   document.getElementById('edit-cleaner-id').addEventListener('change', function() {
     var cleanerId = document.getElementById('edit-cleaner-id').value;
