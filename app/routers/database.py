@@ -24,7 +24,7 @@ def _resolve_sqlite_db_path(database_url: str) -> Path:
 
 
 @router.get("/download")
-def download_database_file():
+async def download_database_file():
     db_path = _resolve_sqlite_db_path(settings.database_url)
 
     if not db_path.exists():
