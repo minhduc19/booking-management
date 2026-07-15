@@ -59,7 +59,7 @@ def parse_date(value: str):
 
 
 @router.post("/", response_model=schemas.BookingResponse)
-def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
+async def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
     db_booking = models.Booking(**booking.model_dump())
     db.add(db_booking)
     db.commit()
@@ -68,12 +68,12 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
 
 
 @router.get("/", response_model=list[schemas.BookingResponse])
-def list_bookings(db: Session = Depends(get_db)):
+async def list_bookings(db: Session = Depends(get_db)):
     return db.query(models.Booking).all()
 
 
 @router.get("/{confirmation_code}", response_model=schemas.BookingResponse)
-def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
+async def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
     booking = db.query(models.Booking).filter(
         models.Booking.confirmation_code == confirmation_code
     ).first()
@@ -83,7 +83,7 @@ def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{confirmation_code}")
-def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
+async def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
     booking = db.query(models.Booking).filter(
         models.Booking.confirmation_code == confirmation_code
     ).first()
@@ -103,7 +103,7 @@ def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
 
 
 @router.get("/checkout/")
-def bookings_by_checkout(db: Session = Depends(get_db)):
+async def bookings_by_checkout(db: Session = Depends(get_db)):
     bookings = (
         db.query(models.Booking)
         .options(

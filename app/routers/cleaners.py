@@ -10,7 +10,7 @@ router = APIRouter(prefix="/cleaners", tags=["cleaners"])
 
 
 @router.post("/", response_model=schemas.CleanerResponse)
-def create_cleaner(cleaner: schemas.CleanerCreate, db: Session = Depends(get_db)):
+async def create_cleaner(cleaner: schemas.CleanerCreate, db: Session = Depends(get_db)):
     db_cleaner = models.Cleaner(**cleaner.model_dump())
     db.add(db_cleaner)
     db.commit()
@@ -19,12 +19,12 @@ def create_cleaner(cleaner: schemas.CleanerCreate, db: Session = Depends(get_db)
 
 
 @router.get("/", response_model=list[schemas.CleanerResponse])
-def list_cleaners(db: Session = Depends(get_db)):
+async def list_cleaners(db: Session = Depends(get_db)):
     return db.query(models.Cleaner).all()
 
 
 @router.get("/{cleaner_id}", response_model=schemas.CleanerResponse)
-def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
+async def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
     cleaner = db.query(models.Cleaner).filter(models.Cleaner.id == cleaner_id).first()
     if cleaner is None:
         raise HTTPException(status_code=404, detail="Cleaner not found")
@@ -32,7 +32,7 @@ def get_cleaner(cleaner_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{cleaner_id}/sessions", response_model=schemas.CleanerResponse)
-def get_cleaner_sessions(
+async def get_cleaner_sessions(
     cleaner_id: int,
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
