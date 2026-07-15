@@ -67,12 +67,12 @@
     <div class="panel-body">
       <div class="row">
         <div class="col-sm-2">
-          <label for="hours-input">Hours</label>
-          <input id="hours-input" type="number" class="form-control input-sm" min="0" value="0">
+          <label for="start-time-input">Start Time</label>
+          <input id="start-time-input" type="time" class="form-control input-sm" value="10:00">
         </div>
         <div class="col-sm-2">
-          <label for="minutes-input">Minutes</label>
-          <input id="minutes-input" type="number" class="form-control input-sm" min="0" max="59" value="0">
+          <label for="finish-time-input">Finish Time</label>
+          <input id="finish-time-input" type="time" class="form-control input-sm" value="12:00">
         </div>
         <div class="col-sm-2">
           <label for="fix-cost-input">Fixed Cost</label>
@@ -142,12 +142,12 @@
           </div>
           <div class="row" style="margin-top:12px;">
             <div class="col-sm-3">
-              <label for="edit-hours">Hours</label>
-              <input id="edit-hours" type="number" class="form-control input-sm" min="0" value="0">
+              <label for="edit-start-time">Start Time</label>
+              <input id="edit-start-time" type="time" class="form-control input-sm" value="10:00">
             </div>
             <div class="col-sm-3">
-              <label for="edit-minutes">Minutes</label>
-              <input id="edit-minutes" type="number" class="form-control input-sm" min="0" max="59" value="0">
+              <label for="edit-finish-time">Finish Time</label>
+              <input id="edit-finish-time" type="time" class="form-control input-sm" value="12:00">
             </div>
             <div class="col-sm-3">
               <label for="edit-fix-cost">Fixed Cost</label>
@@ -194,6 +194,48 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+
+  function parseTimeToMinutes(value) {
+    if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+      return null;
+    }
+    var parts = value.split(':');
+    var hours = Number(parts[0]);
+    var minutes = Number(parts[1]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      return null;
+    }
+    return (hours * 60) + minutes;
+  }
+
+  function durationFromTimeInputs(startInputId, finishInputId) {
+    var startValue = document.getElementById(startInputId).value;
+    var finishValue = document.getElementById(finishInputId).value;
+    var startMinutes = parseTimeToMinutes(startValue);
+    var finishMinutes = parseTimeToMinutes(finishValue);
+    if (startMinutes == null || finishMinutes == null) {
+      return { error: 'Please enter both start time and finish time.' };
+    }
+    if (finishMinutes <= startMinutes) {
+      return { error: 'Finish time must be after start time.' };
+    }
+    var totalMinutes = finishMinutes - startMinutes;
+    return {
+      hours: Math.floor(totalMinutes / 60),
+      minutes: totalMinutes % 60
+    };
+  }
+
+  function finishTimeFromDuration(startValue, hours, minutes) {
+    var startMinutes = parseTimeToMinutes(startValue);
+    if (startMinutes == null) {
+      return startValue;
+    }
+    var totalMinutes = Math.min((24 * 60) - 1, startMinutes + (hours * 60) + minutes);
+    return String(Math.floor(totalMinutes / 60)).padStart(2, '0') + ':' +
+      String(totalMinutes % 60).padStart(2, '0');
   }
 
   function sessionText(sessions) {
@@ -365,8 +407,10 @@
     document.getElementById('edit-session-id').value = session.session_id;
     document.getElementById('edit-cleaner-id').innerHTML = cleanerOptionsHtml(session.cleaner_id);
     document.getElementById('edit-clean-date').value = session.clean_date || '';
-    document.getElementById('edit-hours').value = Number.isFinite(Number(session.hours)) ? Math.max(0, Math.floor(Number(session.hours))) : 0;
-    document.getElementById('edit-minutes').value = Number.isFinite(Number(session.minutes)) ? Math.min(59, Math.max(0, Math.floor(Number(session.minutes)))) : 0;
+    var editHours = Number.isFinite(Number(session.hours)) ? Math.max(0, Math.floor(Number(session.hours))) : 0;
+    var editMinutes = Number.isFinite(Number(session.minutes)) ? Math.min(59, Math.max(0, Math.floor(Number(session.minutes)))) : 0;
+    document.getElementById('edit-start-time').value = '10:00';
+    document.getElementById('edit-finish-time').value = finishTimeFromDuration('10:00', editHours, editMinutes);
     document.getElementById('edit-fix-cost').value = Number.isFinite(Number(session.fix_cost)) ? Math.max(0, Number(session.fix_cost)).toFixed(2) : '0.00';
     document.getElementById('edit-paid-status').checked = !!session.paid_status;
     document.getElementById('edit-confirmation-codes').value = (session.confirmation_codes || []).join(', ');
@@ -376,11 +420,8 @@
   }
 
   function modalSessionDetails() {
-    var hoursRaw = Number(document.getElementById('edit-hours').value || 0);
-    var minutesRaw = Number(document.getElementById('edit-minutes').value || 0);
+    var duration = durationFromTimeInputs('edit-start-time', 'edit-finish-time');
     var fixCostRaw = Number(document.getElementById('edit-fix-cost').value || 0);
-    var hours = Number.isFinite(hoursRaw) ? Math.max(0, Math.floor(hoursRaw)) : 0;
-    var minutes = Number.isFinite(minutesRaw) ? Math.min(59, Math.max(0, Math.floor(minutesRaw))) : 0;
     var fixCost = Number.isFinite(fixCostRaw) ? Math.max(0, fixCostRaw) : 0;
     var confirmationCodes = document.getElementById('edit-confirmation-codes').value
       .split(',')
@@ -390,8 +431,9 @@
     return {
       cleaner_id: Number(document.getElementById('edit-cleaner-id').value),
       clean_date: document.getElementById('edit-clean-date').value,
-      hours: hours,
-      minutes: minutes,
+      hours: duration.hours,
+      minutes: duration.minutes,
+      duration_error: duration.error,
       notes: document.getElementById('edit-notes').value || '',
       fix_cost: fixCost,
       paid_status: document.getElementById('edit-paid-status').checked,
@@ -468,6 +510,11 @@
       showEditSessionAlert('danger', 'Please enter at least one confirmation code.');
       return;
     }
+    if (payload.duration_error) {
+      showEditSessionAlert('danger', payload.duration_error);
+      return;
+    }
+    delete payload.duration_error;
 
     var button = document.getElementById('edit-session-save-btn');
     button.disabled = true;
@@ -813,20 +860,16 @@
 
 
   function sessionDetails() {
-    var hoursRaw = Number(document.getElementById('hours-input').value || 0);
-    var minutesRaw = Number(document.getElementById('minutes-input').value || 0);
+    var duration = durationFromTimeInputs('start-time-input', 'finish-time-input');
     var notes = document.getElementById('notes-input').value || '';
     var fixCostRaw = Number(document.getElementById('fix-cost-input').value || 0);
-
-    var hours = Number.isFinite(hoursRaw) ? Math.max(0, Math.floor(hoursRaw)) : 0;
-    var minutes = Number.isFinite(minutesRaw) ? Math.floor(minutesRaw) : 0;
-    minutes = Math.min(59, Math.max(0, minutes));
 
     var fixCost = Number.isFinite(fixCostRaw) ? Math.max(0, fixCostRaw) : 0;
 
     return {
-      hours: hours,
-      minutes: minutes,
+      hours: duration.hours,
+      minutes: duration.minutes,
+      duration_error: duration.error,
       notes: notes,
       fix_cost: fixCost
     };
@@ -844,6 +887,12 @@
     buttonEl.textContent = 'Saving...';
 
     var details = sessionDetails();
+    if (details.duration_error) {
+      showError(details.duration_error);
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Save';
+      return;
+    }
 
     $.ajax({
       url: API + '/cleaning-sessions/',
