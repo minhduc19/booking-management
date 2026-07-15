@@ -2,7 +2,7 @@ import csv
 from pathlib import Path
 
 from app import models
-
+from .database import client, session
 
 def test_bulk_upload_bookings_from_payload(client, session):
     payload_path = Path(__file__).with_name("BookingTestPayload.csv")
