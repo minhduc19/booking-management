@@ -15,10 +15,11 @@ class User(Base):
 class Property(Base):
     __tablename__ = "properties"
 
-    id      = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     address = Column(String, unique=True, nullable=False)
 
     bookings = relationship("Booking", back_populates="property")
+    listing_metadata = relationship("ListingMetadata", back_populates="property")
 
 
 class Cleaner(Base):
@@ -31,6 +32,17 @@ class Cleaner(Base):
     rate = Column(Float, nullable=True)  # hourly rate
 
     sessions = relationship("CleaningSession", back_populates="cleaner")
+
+
+class ListingMetadata(Base):
+    __tablename__ = "listing_metadata"
+
+    id = Column(Integer, primary_key=True, index=True)
+    listing = Column(String, unique=True, index=True, nullable=False)
+    listing_number = Column(String, nullable=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), nullable=True)
+
+    property = relationship("Property", back_populates="listing_metadata")
 
 
 class Booking(Base):
@@ -61,26 +73,33 @@ class Booking(Base):
 class CleaningSession(Base):
     __tablename__ = "cleaning_sessions"
 
-    id         = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     cleaner_id = Column(Integer, ForeignKey("cleaners.id"), nullable=False)
     clean_date = Column(Date, nullable=False)
-    hours      = Column(Integer, nullable=False, default=0)
-    minutes    = Column(Integer, nullable=False, default=0)  # 0-59
-    notes      = Column(String, nullable=True)
-    fix_cost   = Column(Float, nullable=False, default=0.0)
+    hours = Column(Integer, nullable=False, default=0)
+    minutes = Column(Integer, nullable=False, default=0)  # 0-59
+    notes = Column(String, nullable=True)
+    fix_cost = Column(Float, nullable=False, default=0.0)
     paid_status = Column(Boolean, nullable=False, default=False)
 
-    cleaner          = relationship("Cleaner", back_populates="sessions")
-    session_bookings = relationship("SessionBooking", back_populates="session", cascade="all, delete-orphan")
+    cleaner = relationship("Cleaner", back_populates="sessions")
+    session_bookings = relationship(
+        "SessionBooking", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class SessionBooking(Base):
     """Link table — one cleaning session can cover multiple bookings."""
+
     __tablename__ = "session_bookings"
 
-    id                = Column(Integer, primary_key=True, index=True)
-    session_id        = Column(Integer, ForeignKey("cleaning_sessions.id", ondelete="CASCADE"), nullable=False)
-    confirmation_code = Column(String, ForeignKey("bookings.confirmation_code"), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(
+        Integer, ForeignKey("cleaning_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    confirmation_code = Column(
+        String, ForeignKey("bookings.confirmation_code"), nullable=False
+    )
 
     session = relationship("CleaningSession", back_populates="session_bookings")
     booking = relationship("Booking", back_populates="session_bookings")

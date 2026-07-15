@@ -2,16 +2,16 @@ import csv
 from pathlib import Path
 
 from app import models
-from app.main import app
-from .database import client, session
-from app import schemas
 
 
 def test_bulk_upload_bookings_from_payload(client, session):
     payload_path = Path(__file__).with_name("BookingTestPayload.csv")
 
     with payload_path.open("r", encoding="utf-8", newline="") as csv_file:
-        expected_rows = sum(1 for _ in csv.DictReader(csv_file))
+        csv_rows = list(csv.DictReader(csv_file))
+
+    expected_rows = len(csv_rows)
+    expected_listing_metadata = len({row["Listing"] for row in csv_rows})
 
     with payload_path.open("rb") as csv_file:
         response = client.post(
@@ -30,6 +30,14 @@ def test_bulk_upload_bookings_from_payload(client, session):
 
     total_bookings = session.query(models.Booking).count()
     total_properties = session.query(models.Property).count()
+    total_listing_metadata = session.query(models.ListingMetadata).count()
+    unmapped_bookings = (
+        session.query(models.Booking)
+        .filter(models.Booking.listing_number.is_(None))
+        .count()
+    )
 
     assert total_bookings == expected_rows
     assert total_properties == 2
+    assert total_listing_metadata == expected_listing_metadata
+    assert unmapped_bookings == 0

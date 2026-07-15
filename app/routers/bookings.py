@@ -10,28 +10,6 @@ from app.database import get_db
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
-LISTING_TO_NUMBER = {
-    "Spacious cosy room with prime location": "Room 4 - 1419",
-    "Spacious - central - historic view": "Room 3 - 1951",
-    "Unique - spacious - central - with living space": "Room 1 - 1219",
-    "Relaxing - good location - well furnished": "Room 2 - 1319",
-    "Stylish, Walking Distance to Centre, Free Parking": "Room 1",
-    "En-suite, Walking Distance to Centre, Free Parking": "Room 3",
-    "Cosy, Walking Distance to Centre, Free Parking": "Room 2",
-    "Unique oval room -Spacious -Central - Living Space": "Room 5 - 1519",
-}
-
-LISTING_TO_PROPERTY = {
-    "Spacious cosy room with prime location": "2 Pilrig Street",
-    "Spacious - central - historic view": "2 Pilrig Street",
-    "Unique - spacious - central - with living space": "2 Pilrig Street",
-    "Relaxing - good location - well furnished": "2 Pilrig Street",
-    "Stylish, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
-    "En-suite, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
-    "Cosy, Walking Distance to Centre, Free Parking": "35 Pilrig Heights",
-    "Unique oval room -Spacious -Central - Living Space": "2 Pilrig Street",
-}
-
 COLUMN_MAP = {
     "Confirmation code": "confirmation_code",
     "Status": "status",
@@ -74,9 +52,11 @@ def list_bookings(db: Session = Depends(get_db)):
 
 @router.get("/{confirmation_code}", response_model=schemas.BookingResponse)
 def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
-    booking = db.query(models.Booking).filter(
-        models.Booking.confirmation_code == confirmation_code
-    ).first()
+    booking = (
+        db.query(models.Booking)
+        .filter(models.Booking.confirmation_code == confirmation_code)
+        .first()
+    )
     if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     return booking
@@ -84,15 +64,19 @@ def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
 
 @router.delete("/{confirmation_code}")
 def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
-    booking = db.query(models.Booking).filter(
-        models.Booking.confirmation_code == confirmation_code
-    ).first()
+    booking = (
+        db.query(models.Booking)
+        .filter(models.Booking.confirmation_code == confirmation_code)
+        .first()
+    )
     if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
 
-    deleted_session_bookings = db.query(models.SessionBooking).filter(
-        models.SessionBooking.confirmation_code == confirmation_code
-    ).delete(synchronize_session=False)
+    deleted_session_bookings = (
+        db.query(models.SessionBooking)
+        .filter(models.SessionBooking.confirmation_code == confirmation_code)
+        .delete(synchronize_session=False)
+    )
 
     db.delete(booking)
     db.commit()
@@ -178,14 +162,18 @@ def bookings_by_checkout(db: Session = Depends(get_db)):
 
 
 @router.post("/bulk-upload/")
-async def bulk_upload_bookings(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+async def bulk_upload_bookings(
+    files: list[UploadFile] = File(...), db: Session = Depends(get_db)
+):
     all_created, all_updated, all_errors = [], [], []
 
     async def process_file(file: UploadFile):
         created, updated, errors = [], [], []
 
         if not file.filename.endswith(".csv"):
-            errors.append({"file": file.filename, "row": None, "error": "Not a CSV file"})
+            errors.append(
+                {"file": file.filename, "row": None, "error": "Not a CSV file"}
+            )
             return created, updated, errors
 
         contents = await file.read()
@@ -193,7 +181,10 @@ async def bulk_upload_bookings(files: list[UploadFile] = File(...), db: Session 
 
         for i, row in enumerate(reader, start=2):
             try:
-                data = {model_field: row[csv_col].strip() for csv_col, model_field in COLUMN_MAP.items()}
+                data = {
+                    model_field: row[csv_col].strip()
+                    for csv_col, model_field in COLUMN_MAP.items()
+                }
 
                 data["adults"] = int(data["adults"])
                 data["children"] = int(data["children"])
@@ -201,25 +192,27 @@ async def bulk_upload_bookings(files: list[UploadFile] = File(...), db: Session 
                 data["nights"] = int(data["nights"])
                 data["start_date"] = parse_date(data["start_date"])
                 data["end_date"] = parse_date(data["end_date"])
-                data["booked_date"] = parse_date(data["booked_date"]) if data["booked_date"] else None
+                data["booked_date"] = (
+                    parse_date(data["booked_date"]) if data["booked_date"] else None
+                )
 
                 listing = data.get("listing", "")
-                data["listing_number"] = LISTING_TO_NUMBER.get(listing)
+                listing_metadata = (
+                    db.query(models.ListingMetadata)
+                    .filter(models.ListingMetadata.listing == listing)
+                    .first()
+                )
+                if listing_metadata:
+                    data["listing_number"] = listing_metadata.listing_number
+                    data["property_id"] = listing_metadata.property_id
 
-                property_address = LISTING_TO_PROPERTY.get(listing)
-                if property_address:
-                    prop = db.query(models.Property).filter(
-                        models.Property.address == property_address
-                    ).first()
-                    if not prop:
-                        prop = models.Property(address=property_address)
-                        db.add(prop)
-                        db.flush()
-                    data["property_id"] = prop.id
-
-                exists = db.query(models.Booking).filter(
-                    models.Booking.confirmation_code == data["confirmation_code"]
-                ).first()
+                exists = (
+                    db.query(models.Booking)
+                    .filter(
+                        models.Booking.confirmation_code == data["confirmation_code"]
+                    )
+                    .first()
+                )
                 if exists:
                     for key, value in data.items():
                         setattr(exists, key, value)
