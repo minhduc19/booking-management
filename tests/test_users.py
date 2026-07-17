@@ -1,5 +1,6 @@
 from app import models
 from app.security import verify_password
+from .database import client, session
 
 
 def create_user(client, email="user@example.com", password="secure-pass"):
@@ -31,7 +32,10 @@ def test_list_users(client):
         "first@example.com",
         "second@example.com",
     ]
-    assert all("password" not in user and "hashed_password" not in user for user in response.json())
+    assert all(
+        "password" not in user and "hashed_password" not in user
+        for user in response.json()
+    )
 
 
 def test_update_user_email_and_password(client, session):
@@ -66,7 +70,12 @@ def test_duplicate_email_returns_conflict(client):
 
 
 def test_user_validation_and_not_found_responses(client):
-    assert create_user(client, email="invalid", password="secure-pass").status_code == 422
+    assert (
+        create_user(client, email="invalid", password="secure-pass").status_code == 422
+    )
     assert create_user(client, password="short").status_code == 422
     assert client.get("/users/999").status_code == 404
-    assert client.patch("/users/999", json={"email": "new@example.com"}).status_code == 404
+    assert (
+        client.patch("/users/999", json={"email": "new@example.com"}).status_code
+        == 404
+    )
