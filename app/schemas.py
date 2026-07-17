@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserBase(BaseModel):
     email: EmailStr
+    role: str = Field(default="user", min_length=1)
 
 
 class UserCreate(UserBase):
@@ -14,11 +15,11 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     password: str | None = Field(default=None, min_length=8)
+    role: str | None = Field(default=None, min_length=1)
 
 
 class UserResponse(UserBase):
     id: int
-    email: str
 
     model_config = {"from_attributes": True}
 
