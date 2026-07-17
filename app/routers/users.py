@@ -27,7 +27,9 @@ def _commit_or_email_conflict(db: Session) -> None:
 @router.post("/", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     user = models.User(
-        email=str(payload.email), hashed_password=hash_password(payload.password)
+        email=str(payload.email),
+        hashed_password=hash_password(payload.password),
+        role=payload.role,
     )
     db.add(user)
     _commit_or_email_conflict(db)
@@ -59,6 +61,10 @@ def update_user(
         if changes["password"] is None:
             raise HTTPException(status_code=422, detail="Password cannot be null")
         user.hashed_password = hash_password(changes["password"])
+    if "role" in changes:
+        if changes["role"] is None:
+            raise HTTPException(status_code=422, detail="Role cannot be null")
+        user.role = changes["role"]
 
     _commit_or_email_conflict(db)
     db.refresh(user)
