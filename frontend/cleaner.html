@@ -182,28 +182,28 @@
       '<p style="margin-bottom:0;"><strong>Rate:</strong> £' + escapeHtml(cleaner.rate || 0) + '/hour</p>';
   }
 
-  function selectAllUnpaidSessions() {
-    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.paid-session-checkbox:not(:disabled)'));
+  function selectAllSessions() {
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.paid-session-checkbox'));
 
     checkboxes.forEach(function(checkbox) {
       checkbox.checked = true;
     });
   }
 
-  function updateSelectedSessionsPaidStatus() {
+  function updateSelectedSessionsPaidStatus(paidStatus) {
     clearError();
 
-    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.paid-session-checkbox:checked:not(:disabled)'));
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.paid-session-checkbox:checked'));
     var sessionIds = checkboxes.map(function(checkbox) {
       return checkbox.value;
     });
 
     if (!sessionIds.length) {
-      showError('Please select at least one session to mark as paid.');
+      showError('Please select at least one session to mark as ' + (paidStatus ? 'paid.' : 'unpaid.'));
       return;
     }
 
-    var button = document.getElementById('update-paid-btn');
+    var button = document.getElementById(paidStatus ? 'update-paid-btn' : 'update-unpaid-btn');
     if (button) {
       button.disabled = true;
       button.textContent = 'Updating...';
@@ -215,7 +215,7 @@
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ paid_status: true })
+        body: JSON.stringify({ paid_status: paidStatus })
       }).then(function(response) {
         if (!response.ok) {
           throw new Error('Failed to update session #' + sessionId + ' (HTTP ' + response.status + ')');
@@ -224,16 +224,16 @@
       });
     }))
       .then(function() {
-        showSuccess('Marked ' + sessionIds.length + ' selected session(s) as paid.');
+        showSuccess('Marked ' + sessionIds.length + ' selected session(s) as ' + (paidStatus ? 'paid.' : 'unpaid.'));
         fetchSessions();
       })
       .catch(function(error) {
-        showError(error.message || 'Could not update selected paid statuses');
+        showError(error.message || 'Could not update selected payment statuses');
       })
       .finally(function() {
         if (button) {
           button.disabled = false;
-          button.textContent = 'Mark Selected Paid';
+          button.textContent = paidStatus ? 'Mark Selected Paid' : 'Mark Selected Unpaid';
         }
       });
   }
@@ -257,7 +257,7 @@
       }).join('<br>');
 
       return '<tr>' +
-        '<td class="text-center"><input type="checkbox" class="paid-session-checkbox" value="' + escapeHtml(session.id) + '"' + (session.paid_status ? ' disabled title="Already paid"' : '') + '></td>' +
+        '<td class="text-center"><input type="checkbox" class="paid-session-checkbox" value="' + escapeHtml(session.id) + '"></td>' +
         '<td>' + escapeHtml(session.id) + '</td>' +
         '<td>' + escapeHtml(session.clean_date) + '</td>' +
         '<td>' + escapeHtml(session.hours) + '</td>' +
@@ -274,15 +274,16 @@
 
     container.innerHTML =
       '<div class="clearfix" style="margin-bottom:10px;">' +
-        '<button type="button" class="btn btn-success btn-sm pull-right" id="update-paid-btn">Mark Selected Paid</button>' +
+        '<button type="button" class="btn btn-default btn-sm pull-right" id="update-unpaid-btn">Mark Selected Unpaid</button>' +
+        '<button type="button" class="btn btn-success btn-sm pull-right" id="update-paid-btn" style="margin-right:8px;">Mark Selected Paid</button>' +
         '<button type="button" class="btn btn-default btn-sm pull-right" id="select-all-paid-btn" style="margin-right:8px;">Select All</button>' +
-        '<p class="text-muted" style="margin:6px 0 0;">Uses PATCH /cleaning-sessions/{session_id} with <code>{ paid_status: true }</code>.</p>' +
+        '<p class="text-muted" style="margin:6px 0 0;">Select sessions, then mark them as paid or unpaid.</p>' +
       '</div>' +
       '<div class="table-responsive">' +
         '<table class="table table-striped table-bordered table-condensed" style="margin-bottom:10px;">' +
           '<thead>' +
             '<tr>' +
-              '<th class="text-center">Paid?</th>' +
+              '<th class="text-center">Select</th>' +
               '<th>Session ID</th>' +
               '<th>Date</th>' +
               '<th>Hours</th>' +
@@ -305,11 +306,15 @@
   document.getElementById('fetch-btn').addEventListener('click', fetchSessions);
   document.getElementById('sessions').addEventListener('click', function(event) {
     if (event.target && event.target.id === 'select-all-paid-btn') {
-      selectAllUnpaidSessions();
+      selectAllSessions();
     }
 
     if (event.target && event.target.id === 'update-paid-btn') {
-      updateSelectedSessionsPaidStatus();
+      updateSelectedSessionsPaidStatus(true);
+    }
+
+    if (event.target && event.target.id === 'update-unpaid-btn') {
+      updateSelectedSessionsPaidStatus(false);
     }
   });
   loadCleaners();
