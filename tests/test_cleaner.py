@@ -97,3 +97,18 @@ def test_update_cleaning_session(client):
     checkout_session = checkout.json()[0]["unassigned"][0]["sessions"][0]
     assert checkout_session["cleaner_id"] == cleaner_id
     assert checkout_session["paid_status"] is True
+
+    marked_unpaid = client.patch(
+        f"/cleaning-sessions/{session_id}", json={"paid_status": False}
+    )
+    assert marked_unpaid.status_code == 200
+    assert marked_unpaid.json()["paid_status"] is False
+
+
+def test_cleaner_page_can_mark_sessions_unpaid(client):
+    response = client.get("/index-cleaner")
+
+    assert response.status_code == 200
+    assert "Mark Selected Unpaid" in response.text
+    assert "JSON.stringify({ paid_status: paidStatus })" in response.text
+    assert 'disabled title="Already paid"' not in response.text
