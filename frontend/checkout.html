@@ -218,8 +218,8 @@
     if (startMinutes == null || finishMinutes == null) {
       return { error: 'Please enter both start time and finish time.' };
     }
-    if (finishMinutes <= startMinutes) {
-      return { error: 'Finish time must be after start time.' };
+    if (finishMinutes < startMinutes) {
+      return { error: 'Finish time must be at or after start time.' };
     }
     var totalMinutes = finishMinutes - startMinutes;
     return {
