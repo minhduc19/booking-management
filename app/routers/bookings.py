@@ -3,6 +3,7 @@ import io
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
@@ -50,42 +51,6 @@ async def list_bookings(db: Session = Depends(get_db)):
     return db.query(models.Booking).all()
 
 
-@router.get("/{confirmation_code}", response_model=schemas.BookingResponse)
-def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
-    booking = (
-        db.query(models.Booking)
-        .filter(models.Booking.confirmation_code == confirmation_code)
-        .first()
-    )
-    if booking is None:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    return booking
-
-
-@router.delete("/{confirmation_code}")
-def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
-    booking = (
-        db.query(models.Booking)
-        .filter(models.Booking.confirmation_code == confirmation_code)
-        .first()
-    )
-    if booking is None:
-        raise HTTPException(status_code=404, detail="Booking not found")
-
-    deleted_session_bookings = (
-        db.query(models.SessionBooking)
-        .filter(models.SessionBooking.confirmation_code == confirmation_code)
-        .delete(synchronize_session=False)
-    )
-
-    db.delete(booking)
-    db.commit()
-    return {
-        "deleted": confirmation_code,
-        "deleted_session_bookings": deleted_session_bookings,
-    }
-
-
 @router.get("/checkout/")
 async def bookings_by_checkout(db: Session = Depends(get_db)):
     bookings = (
@@ -96,6 +61,7 @@ async def bookings_by_checkout(db: Session = Depends(get_db)):
             .joinedload(models.CleaningSession.cleaner),
             joinedload(models.Booking.property),
         )
+        .filter(func.lower(models.Booking.status).notin_(["cancelled", "canceled"]))
         .order_by(models.Booking.end_date)
         .all()
     )
@@ -159,6 +125,42 @@ async def bookings_by_checkout(db: Session = Depends(get_db)):
         }
         for date_key, data in grouped.items()
     ]
+
+
+@router.get("/{confirmation_code}", response_model=schemas.BookingResponse)
+def get_booking(confirmation_code: str, db: Session = Depends(get_db)):
+    booking = (
+        db.query(models.Booking)
+        .filter(models.Booking.confirmation_code == confirmation_code)
+        .first()
+    )
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return booking
+
+
+@router.delete("/{confirmation_code}")
+def delete_booking(confirmation_code: str, db: Session = Depends(get_db)):
+    booking = (
+        db.query(models.Booking)
+        .filter(models.Booking.confirmation_code == confirmation_code)
+        .first()
+    )
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    deleted_session_bookings = (
+        db.query(models.SessionBooking)
+        .filter(models.SessionBooking.confirmation_code == confirmation_code)
+        .delete(synchronize_session=False)
+    )
+
+    db.delete(booking)
+    db.commit()
+    return {
+        "deleted": confirmation_code,
+        "deleted_session_bookings": deleted_session_bookings,
+    }
 
 
 @router.post("/bulk-upload/")
