@@ -200,6 +200,39 @@ def test_delete_booking_without_session_links_reports_zero_deleted_links(client,
     assert session.query(models.Booking).filter_by(confirmation_code="CONF-NO-LINKS").first() is None
 
 
+def test_checkout_excludes_cancelled_bookings(client):
+    _create_booking(
+        client,
+        "CONF-CHECKOUT-ACTIVE",
+        guest_name="Active Checkout Guest",
+        listing="Stylish, Walking Distance to Centre, Free Parking",
+    )
+    _create_booking(
+        client,
+        "CONF-CHECKOUT-CANCELLED",
+        status="Cancelled",
+        guest_name="Cancelled Checkout Guest",
+        listing="En-suite, Walking Distance to Centre, Free Parking",
+    )
+
+    response = client.get("/bookings/checkout/")
+
+    assert response.status_code == 200
+    checkout_groups = response.json()
+    checkout_codes = {
+        booking["confirmation_code"]
+        for group in checkout_groups
+        for property_group in group["by_property"]
+        for booking in property_group["bookings"]
+    } | {
+        booking["confirmation_code"]
+        for group in checkout_groups
+        for booking in group["unassigned"]
+    }
+    assert "CONF-CHECKOUT-ACTIVE" in checkout_codes
+    assert "CONF-CHECKOUT-CANCELLED" not in checkout_codes
+
+
 def test_delete_booking_returns_404_for_unknown_confirmation_code(client):
     response = client.delete("/bookings/DOES-NOT-EXIST")
 
