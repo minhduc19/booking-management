@@ -32,6 +32,13 @@ async def read_bookings():
     return HTMLResponse(content=html_content)
 
 
+@router.get("/index-listing-metadata", response_class=HTMLResponse)
+async def read_listing_metadata():
+    with open("frontend/listing_metadata.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
+
 @router.get("/")
 async def read_root():
     return {"message": "Changed to private repository"}

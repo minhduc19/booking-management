@@ -33,6 +33,31 @@ class PropertyResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- Listing metadata ---
+
+class ListingMetadataBase(BaseModel):
+    listing: str = Field(min_length=1)
+    listing_number: str | None = None
+    property_id: int | None = None
+
+
+class ListingMetadataCreate(ListingMetadataBase):
+    pass
+
+
+class ListingMetadataUpdate(BaseModel):
+    listing: str | None = Field(default=None, min_length=1)
+    listing_number: str | None = None
+    property_id: int | None = None
+
+
+class ListingMetadataResponse(ListingMetadataBase):
+    id: int
+    property: PropertyResponse | None = None
+
+    model_config = {"from_attributes": True}
+
+
 # --- Cleaners ---
 
 class CleanerBase(BaseModel):
