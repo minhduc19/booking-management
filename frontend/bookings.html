@@ -17,6 +17,27 @@
 
   <div id="alerts"></div>
 
+  <div class="panel panel-danger">
+    <div class="panel-heading"><strong>Delete Booking</strong></div>
+    <div class="panel-body">
+      <p class="text-muted">Enter a confirmation code to permanently delete that booking.</p>
+      <form id="delete-booking-form" class="form-inline">
+        <div class="form-group">
+          <label class="sr-only" for="delete-confirmation-code">Confirmation Code</label>
+          <input
+            id="delete-confirmation-code"
+            type="text"
+            class="form-control"
+            placeholder="Confirmation Code"
+            autocomplete="off"
+            required
+          >
+        </div>
+        <button type="submit" class="btn btn-danger">Delete Booking</button>
+      </form>
+    </div>
+  </div>
+
   <div class="panel panel-default">
     <div class="panel-heading">
       <strong>All Bookings</strong>
@@ -57,8 +78,10 @@
     document.getElementById('bookings').innerHTML = '<p class="text-muted" style="margin:0;">Loading bookings...</p>';
   }
 
-  function loadBookings() {
-    clearAlert();
+  function loadBookings(preserveAlert) {
+    if (!preserveAlert) {
+      clearAlert();
+    }
     setLoading();
 
     return fetch(API + '/bookings/')
@@ -78,8 +101,9 @@
   }
 
   function deleteBooking(confirmationCode) {
+    confirmationCode = String(confirmationCode || '').trim();
     if (!confirmationCode) {
-      showAlert('danger', 'Missing confirmation code for this booking.');
+      showAlert('danger', 'Please enter a confirmation code.');
       return;
     }
 
@@ -99,7 +123,8 @@
       })
       .then(function(result) {
         showAlert('success', 'Deleted booking ' + result.deleted + '. Removed ' + result.deleted_session_bookings + ' session booking link(s).');
-        return loadBookings();
+        document.getElementById('delete-confirmation-code').value = '';
+        return loadBookings(true);
       })
       .catch(function(error) {
         showAlert('danger', error.message || 'Could not delete booking');
@@ -159,6 +184,10 @@
   }
 
   document.getElementById('refresh-btn').addEventListener('click', loadBookings);
+  document.getElementById('delete-booking-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+    deleteBooking(document.getElementById('delete-confirmation-code').value);
+  });
   loadBookings();
 </script>
 
