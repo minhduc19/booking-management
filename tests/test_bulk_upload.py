@@ -72,6 +72,26 @@ def test_bulk_upload_bookings_from_transaction_history_csv(client, session):
     assert booking.earnings == "172.39"
 
 
+def test_bulk_upload_supports_us_transaction_history_dates(client, session):
+    payload = """Date,Type,Confirmation Code,Booking date,Start date,End date,Nights,Guest,Listing,Details,Reference code,Currency,Amount,Service fee,Cleaning fee,Community fee,Gross earnings,Airbnb remitted tax,Earnings year
+06/29/2026,Reservation,USDATE123,06/28/2026,07/02/2026,07/04/2026,2,Jane Doe,US date listing,,,GBP,144.82,33.08,12.00,7.90,172.39,0.00,
+"""
+
+    response = client.post(
+        "/bookings/bulk-upload/",
+        files={"files": ("us-transaction-history.csv", payload, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created"] == 1
+    assert response.json()["errors"] == []
+
+    booking = session.query(models.Booking).filter_by(confirmation_code="USDATE123").one()
+    assert booking.start_date.isoformat() == "2026-07-02"
+    assert booking.end_date.isoformat() == "2026-07-04"
+    assert booking.booked_date.isoformat() == "2026-06-28"
+
+
 def test_bulk_upload_deduplicates_confirmation_codes_in_uploaded_files(client, session):
     payload = """Date,Type,Confirmation Code,Booking date,Start date,End date,Nights,Guest,Listing
 09/03/2026,Reservation,HMKHMEBEHS,08/03/2026,09/02/2026,09/04/2026,2,Harry Smith,Spacious - central - historic view

@@ -35,14 +35,39 @@ OPTIONAL_FIELD_DEFAULTS = {
     "earnings": "",
 }
 
+DEFAULT_DATE_FORMATS = ("%d/%m/%Y", "%Y-%m-%d")
+US_DATE_FORMATS = ("%m/%d/%Y", "%Y-%m-%d")
 
-def parse_date(value: str):
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+
+def parse_date(value: str, formats: tuple[str, ...] = DEFAULT_DATE_FORMATS):
+    for fmt in formats:
         try:
             return datetime.strptime(value.strip(), fmt).date()
         except ValueError:
             continue
     raise ValueError(f"Unrecognised date format: {value!r}")
+
+
+def get_date_formats(rows: list[dict[str, str]]) -> tuple[str, ...]:
+    """Choose a date order for a CSV from dates that are not ambiguous."""
+    date_columns = ("Date", "Booking date", "Start date", "End date")
+
+    for row in rows:
+        for column in date_columns:
+            value = row.get(column, "").strip()
+            try:
+                month_or_day, day_or_month, _ = value.split("/")
+                first = int(month_or_day)
+                second = int(day_or_month)
+            except ValueError:
+                continue
+
+            if first > 12 and second <= 12:
+                return DEFAULT_DATE_FORMATS
+            if second > 12 and first <= 12:
+                return US_DATE_FORMATS
+
+    return DEFAULT_DATE_FORMATS
 
 
 def get_csv_value(row: dict[str, str], field: str) -> str:
@@ -204,8 +229,10 @@ async def bulk_upload_bookings(
 
         contents = await file.read()
         reader = csv.DictReader(io.StringIO(contents.decode("utf-8")))
+        rows = list(reader)
+        date_formats = get_date_formats(rows)
 
-        for i, row in enumerate(reader, start=2):
+        for i, row in enumerate(rows, start=2):
             try:
                 data = {field: get_csv_value(row, field) for field in COLUMN_MAP}
 
@@ -213,10 +240,12 @@ async def bulk_upload_bookings(
                 data["children"] = int(data["children"])
                 data["infants"] = int(data["infants"])
                 data["nights"] = int(data["nights"])
-                data["start_date"] = parse_date(data["start_date"])
-                data["end_date"] = parse_date(data["end_date"])
+                data["start_date"] = parse_date(data["start_date"], date_formats)
+                data["end_date"] = parse_date(data["end_date"], date_formats)
                 data["booked_date"] = (
-                    parse_date(data["booked_date"]) if data["booked_date"] else None
+                    parse_date(data["booked_date"], date_formats)
+                    if data["booked_date"]
+                    else None
                 )
 
                 listing = data.get("listing", "")
