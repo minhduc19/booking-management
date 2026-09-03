@@ -12,19 +12,27 @@ from app.database import get_db
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 COLUMN_MAP = {
-    "Confirmation code": "confirmation_code",
-    "Status": "status",
-    "Guest name": "guest_name",
-    "Contact": "contact",
-    "# of adults": "adults",
-    "# of children": "children",
-    "# of infants": "infants",
-    "Start date": "start_date",
-    "End date": "end_date",
-    "# of nights": "nights",
-    "Booked": "booked_date",
-    "Listing": "listing",
-    "Earnings": "earnings",
+    "confirmation_code": ("Confirmation code", "Confirmation Code"),
+    "status": ("Status", "Type"),
+    "guest_name": ("Guest name", "Guest"),
+    "contact": ("Contact",),
+    "adults": ("# of adults",),
+    "children": ("# of children",),
+    "infants": ("# of infants",),
+    "start_date": ("Start date",),
+    "end_date": ("End date",),
+    "nights": ("# of nights", "Nights"),
+    "booked_date": ("Booked", "Booking date"),
+    "listing": ("Listing",),
+    "earnings": ("Earnings", "Gross earnings"),
+}
+
+OPTIONAL_FIELD_DEFAULTS = {
+    "contact": "",
+    "adults": "0",
+    "children": "0",
+    "infants": "0",
+    "earnings": "",
 }
 
 
@@ -35,6 +43,19 @@ def parse_date(value: str):
         except ValueError:
             continue
     raise ValueError(f"Unrecognised date format: {value!r}")
+
+
+def get_csv_value(row: dict[str, str], field: str) -> str:
+    for column in COLUMN_MAP[field]:
+        value = row.get(column)
+        if value is not None:
+            return value.strip()
+
+    if field in OPTIONAL_FIELD_DEFAULTS:
+        return OPTIONAL_FIELD_DEFAULTS[field]
+
+    columns = ", ".join(COLUMN_MAP[field])
+    raise ValueError(f"Missing required column for {field}: {columns}")
 
 
 @router.post("/", response_model=schemas.BookingResponse)
@@ -183,10 +204,7 @@ async def bulk_upload_bookings(
 
         for i, row in enumerate(reader, start=2):
             try:
-                data = {
-                    model_field: row[csv_col].strip()
-                    for csv_col, model_field in COLUMN_MAP.items()
-                }
+                data = {field: get_csv_value(row, field) for field in COLUMN_MAP}
 
                 data["adults"] = int(data["adults"])
                 data["children"] = int(data["children"])
