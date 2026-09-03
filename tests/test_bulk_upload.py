@@ -41,3 +41,32 @@ def test_bulk_upload_bookings_from_payload(client, session):
     assert total_properties == 2
     assert total_listing_metadata == expected_listing_metadata
     assert unmapped_bookings == 0
+
+
+def test_bulk_upload_bookings_from_transaction_history_csv(client, session):
+    payload = """Date,Type,Confirmation Code,Booking date,Start date,End date,Nights,Guest,Listing,Details,Reference code,Currency,Amount,Service fee,Cleaning fee,Community fee,Gross earnings,Airbnb remitted tax,Earnings year
+09/03/2026,Reservation,HM8PNJJMTA,08/03/2026,09/02/2026,09/04/2026,2,Sekar Anggraeni,"Cosy, Walking Distance to Centre, Free Parking",,,GBP,144.82,33.08,12.00,7.90,172.39,0.00,
+"""
+
+    response = client.post(
+        "/bookings/bulk-upload/",
+        files={"files": ("transaction-history.csv", payload, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created"] == 1
+    assert response.json()["errors"] == []
+
+    booking = (
+        session.query(models.Booking)
+        .filter_by(confirmation_code="HM8PNJJMTA")
+        .one()
+    )
+    assert booking.status == "Reservation"
+    assert booking.guest_name == "Sekar Anggraeni"
+    assert booking.start_date.isoformat() == "2026-02-09"
+    assert booking.end_date.isoformat() == "2026-04-09"
+    assert booking.booked_date.isoformat() == "2026-03-08"
+    assert booking.nights == 2
+    assert booking.adults == booking.children == booking.infants == 0
+    assert booking.earnings == "172.39"
