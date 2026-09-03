@@ -189,6 +189,9 @@ async def bulk_upload_bookings(
     files: list[UploadFile] = File(...), db: Session = Depends(get_db)
 ):
     all_created, all_updated, all_errors = [], [], []
+    pending_bookings: dict[str, models.Booking] = {}
+    created_confirmation_codes: set[str] = set()
+    updated_confirmation_codes: set[str] = set()
 
     async def process_file(file: UploadFile):
         created, updated, errors = [], [], []
@@ -226,20 +229,31 @@ async def bulk_upload_bookings(
                     data["listing_number"] = listing_metadata.listing_number
                     data["property_id"] = listing_metadata.property_id
 
-                exists = (
-                    db.query(models.Booking)
-                    .filter(
-                        models.Booking.confirmation_code == data["confirmation_code"]
+                confirmation_code = data["confirmation_code"]
+                exists = pending_bookings.get(confirmation_code)
+                if exists is None:
+                    exists = (
+                        db.query(models.Booking)
+                        .filter(
+                            models.Booking.confirmation_code == confirmation_code
+                        )
+                        .first()
                     )
-                    .first()
-                )
                 if exists:
                     for key, value in data.items():
                         setattr(exists, key, value)
-                    updated.append(data["confirmation_code"])
+                    if (
+                        confirmation_code not in created_confirmation_codes
+                        and confirmation_code not in updated_confirmation_codes
+                    ):
+                        updated.append(confirmation_code)
+                        updated_confirmation_codes.add(confirmation_code)
                 else:
-                    db.add(models.Booking(**data))
-                    created.append(data["confirmation_code"])
+                    booking = models.Booking(**data)
+                    db.add(booking)
+                    pending_bookings[confirmation_code] = booking
+                    created.append(confirmation_code)
+                    created_confirmation_codes.add(confirmation_code)
 
             except Exception as e:
                 errors.append({"file": file.filename, "row": i, "error": str(e)})

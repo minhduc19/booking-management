@@ -70,3 +70,29 @@ def test_bulk_upload_bookings_from_transaction_history_csv(client, session):
     assert booking.nights == 2
     assert booking.adults == booking.children == booking.infants == 0
     assert booking.earnings == "172.39"
+
+
+def test_bulk_upload_deduplicates_confirmation_codes_in_uploaded_files(client, session):
+    payload = """Date,Type,Confirmation Code,Booking date,Start date,End date,Nights,Guest,Listing
+09/03/2026,Reservation,HMKHMEBEHS,08/03/2026,09/02/2026,09/04/2026,2,Harry Smith,Spacious - central - historic view
+09/03/2026,Co-Host payout,HMKHMEBEHS,08/03/2026,09/02/2026,09/05/2026,3,Harry Smith,Spacious - central - historic view
+"""
+
+    response = client.post(
+        "/bookings/bulk-upload/",
+        files={"files": ("duplicate-confirmation-codes.csv", payload, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created"] == 1
+    assert response.json()["updated"] == 0
+    assert response.json()["errors"] == []
+    assert session.query(models.Booking).count() == 1
+
+    booking = (
+        session.query(models.Booking)
+        .filter_by(confirmation_code="HMKHMEBEHS")
+        .one()
+    )
+    assert booking.status == "Co-Host payout"
+    assert booking.nights == 3
