@@ -45,6 +45,12 @@
         <span class="glyphicon glyphicon-filter"></span> This week
       </button>
       <div class="form-inline" style="display:inline-block; margin-left:12px; vertical-align:middle;">
+        <label for="checkout-date-start-filter" class="control-label" style="margin-right:6px;">Checkout Date</label>
+        <input id="checkout-date-start-filter" type="date" class="form-control input-sm" aria-label="Checkout Date start">
+        <span class="text-muted" style="margin:0 4px;">to</span>
+        <input id="checkout-date-finish-filter" type="date" class="form-control input-sm" aria-label="Checkout Date finish">
+      </div>
+      <div class="form-inline" style="display:inline-block; margin-left:12px; vertical-align:middle;">
         <label for="session-cleaner-filter" class="control-label" style="margin-right:6px;">Sessions cleaner</label>
         <select id="session-cleaner-filter" class="form-control input-sm" style="min-width:180px;">
           <option value="">All cleaners</option>
@@ -209,6 +215,8 @@
   var selectedSessionCleanerId = '';
   var selectedSessionPaidStatus = 'unpaid';
   var thisWeekFilterActive = false;
+  var checkoutDateStartFilter = '';
+  var checkoutDateFinishFilter = '';
 
   function escapeHtml(text) {
     return String(text == null ? '' : text)
@@ -748,6 +756,29 @@
     return date >= range.start && date <= range.end;
   }
 
+  function checkoutDateMatchesRange(checkoutDate) {
+    var date = dateFromIso(checkoutDate);
+    if (!date) return false;
+
+    var start = checkoutDateStartFilter ? dateFromIso(checkoutDateStartFilter) : null;
+    var finish = checkoutDateFinishFilter ? dateFromIso(checkoutDateFinishFilter) : null;
+    if (start && date < start) return false;
+    if (finish && date > finish) return false;
+    return true;
+  }
+
+  function updateCheckoutDateRangeFilter() {
+    var startInput = document.getElementById('checkout-date-start-filter');
+    var finishInput = document.getElementById('checkout-date-finish-filter');
+    checkoutDateStartFilter = startInput.value;
+    checkoutDateFinishFilter = finishInput.value;
+
+    // Guide users away from an inverted range while keeping either endpoint optional.
+    finishInput.min = checkoutDateStartFilter || '';
+    startInput.max = checkoutDateFinishFilter || '';
+    renderCheckoutRows(checkoutData);
+  }
+
   function updateThisWeekButton() {
     var button = document.getElementById('this-week-btn');
     if (!button) return;
@@ -912,7 +943,7 @@
         sessions = uniqueSessionsById(sessions);
         totalRows += 1;
 
-        if (!checkoutDateMatchesThisWeek(day.checkout_date) || !sessionsMatchCleanerFilter(sessions) || !sessionsMatchPaidStatusFilter(sessions)) {
+        if (!checkoutDateMatchesThisWeek(day.checkout_date) || !checkoutDateMatchesRange(day.checkout_date) || !sessionsMatchCleanerFilter(sessions) || !sessionsMatchPaidStatusFilter(sessions)) {
           return;
         }
         visibleRows += 1;
@@ -949,7 +980,7 @@
         var unassignedSessions = uniqueSessionsById(booking.sessions || []);
         totalRows += 1;
 
-        if (!checkoutDateMatchesThisWeek(day.checkout_date) || !sessionsMatchCleanerFilter(unassignedSessions) || !sessionsMatchPaidStatusFilter(unassignedSessions)) {
+        if (!checkoutDateMatchesThisWeek(day.checkout_date) || !checkoutDateMatchesRange(day.checkout_date) || !sessionsMatchCleanerFilter(unassignedSessions) || !sessionsMatchPaidStatusFilter(unassignedSessions)) {
           return;
         }
         visibleRows += 1;
@@ -987,6 +1018,7 @@
       var emptyMessage = 'No checkout data found.';
       var activeFilters = [];
       if (thisWeekFilterActive) activeFilters.push('this week');
+      if (checkoutDateStartFilter || checkoutDateFinishFilter) activeFilters.push('checkout date range');
       if (selectedSessionCleanerId) activeFilters.push('sessions cleaner');
       if (selectedSessionPaidStatus) activeFilters.push('paid status');
       if (activeFilters.length) {
@@ -998,7 +1030,7 @@
     }
 
     var summary = document.getElementById('filter-summary');
-    summary.textContent = (selectedSessionCleanerId || selectedSessionPaidStatus || thisWeekFilterActive) ? 'Showing ' + visibleRows + ' of ' + totalRows + ' rows' : '';
+    summary.textContent = (selectedSessionCleanerId || selectedSessionPaidStatus || thisWeekFilterActive || checkoutDateStartFilter || checkoutDateFinishFilter) ? 'Showing ' + visibleRows + ' of ' + totalRows + ' rows' : '';
   }
 
   function loadCheckout() {
@@ -1199,6 +1231,8 @@
   });
   document.getElementById('scroll-today-btn').addEventListener('click', scrollCheckoutDateToToday);
   document.getElementById('this-week-btn').addEventListener('click', toggleThisWeekFilter);
+  document.getElementById('checkout-date-start-filter').addEventListener('change', updateCheckoutDateRangeFilter);
+  document.getElementById('checkout-date-finish-filter').addEventListener('change', updateCheckoutDateRangeFilter);
   document.getElementById('session-cleaner-filter').addEventListener('change', function(event) {
     selectedSessionCleanerId = event.target.value;
     renderCheckoutRows(checkoutData);
