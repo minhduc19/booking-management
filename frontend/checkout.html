@@ -20,6 +20,10 @@
       background: #f5f5f5;
       white-space: nowrap;
     }
+
+    .booking-details-link {
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -113,6 +117,25 @@
   </div>
 </div>
 
+<div id="booking-details-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="booking-details-modal-title">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="booking-details-modal-title">Booking details</h4>
+      </div>
+      <div class="modal-body">
+        <div id="booking-details-alert"></div>
+        <div id="booking-details-content" class="text-muted">Loading booking details...</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger pull-left" id="delete-booking-modal-btn" disabled>Delete booking</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="edit-session-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="edit-session-modal-title">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
@@ -194,6 +217,105 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  function bookingDetailsLinkHtml(booking) {
+    var listingNumber = booking && booking.listing_number;
+    var confirmationCode = booking && booking.confirmation_code;
+    if (!confirmationCode) {
+      return escapeHtml(listingNumber || '-');
+    }
+    return '<button type="button" class="btn btn-link btn-xs booking-details-link" ' +
+      'data-confirmation-code="' + escapeHtml(confirmationCode) + '">' +
+      escapeHtml(listingNumber || '-') +
+    '</button>';
+  }
+
+  function showBookingDetailsAlert(type, message) {
+    document.getElementById('booking-details-alert').innerHTML =
+      '<div class="alert alert-' + type + '" style="margin-bottom:12px;">' + escapeHtml(message) + '</div>';
+  }
+
+  function bookingDetailRow(label, value) {
+    return '<tr><th style="width:35%;">' + escapeHtml(label) + '</th><td>' + escapeHtml(value == null || value === '' ? '-' : value) + '</td></tr>';
+  }
+
+  function renderBookingDetails(booking) {
+    var propertyAddress = booking.property && booking.property.address ? booking.property.address : '';
+    var content = '<div class="table-responsive"><table class="table table-bordered table-condensed" style="margin-bottom:0;"><tbody>' +
+      bookingDetailRow('Confirmation code', booking.confirmation_code) +
+      bookingDetailRow('Status', booking.status) +
+      bookingDetailRow('Guest', booking.guest_name) +
+      bookingDetailRow('Contact', booking.contact) +
+      bookingDetailRow('Adults', booking.adults) +
+      bookingDetailRow('Children', booking.children) +
+      bookingDetailRow('Infants', booking.infants) +
+      bookingDetailRow('Start date', booking.start_date) +
+      bookingDetailRow('End date', booking.end_date) +
+      bookingDetailRow('Nights', booking.nights) +
+      bookingDetailRow('Booked date', booking.booked_date) +
+      bookingDetailRow('Listing', booking.listing) +
+      bookingDetailRow('Listing #', booking.listing_number) +
+      bookingDetailRow('Earnings', booking.earnings) +
+      bookingDetailRow('Property', propertyAddress) +
+    '</tbody></table></div>';
+    document.getElementById('booking-details-content').innerHTML = content;
+  }
+
+  function openBookingDetailsModal(confirmationCode) {
+    if (!confirmationCode) return;
+
+    document.getElementById('booking-details-modal-title').textContent = 'Booking details';
+    document.getElementById('booking-details-alert').innerHTML = '';
+    document.getElementById('booking-details-content').innerHTML = '<p class="text-muted">Loading booking details...</p>';
+    var deleteButton = document.getElementById('delete-booking-modal-btn');
+    deleteButton.disabled = true;
+    deleteButton.setAttribute('data-confirmation-code', confirmationCode);
+    $('#booking-details-modal').modal('show');
+
+    $.getJSON(API + '/bookings/' + encodeURIComponent(confirmationCode))
+      .done(function(booking) {
+        document.getElementById('booking-details-modal-title').textContent = 'Booking details: ' + (booking.listing_number || booking.confirmation_code);
+        renderBookingDetails(booking);
+        deleteButton.disabled = false;
+      })
+      .fail(function(xhr) {
+        var message = 'Could not load booking details';
+        if (xhr && xhr.status) message += ' (HTTP ' + xhr.status + ')';
+        document.getElementById('booking-details-content').innerHTML = '<p class="text-danger">' + escapeHtml(message) + '</p>';
+        showBookingDetailsAlert('danger', message);
+      });
+  }
+
+  function deleteBookingFromModal(buttonEl) {
+    var confirmationCode = buttonEl.getAttribute('data-confirmation-code');
+    if (!confirmationCode || !window.confirm('Delete booking ' + confirmationCode + '? This cannot be undone.')) return;
+
+    buttonEl.disabled = true;
+    buttonEl.textContent = 'Deleting...';
+    document.getElementById('booking-details-alert').innerHTML = '';
+    $.ajax({
+      url: API + '/bookings/' + encodeURIComponent(confirmationCode),
+      method: 'DELETE'
+    })
+      .done(function(result) {
+        $('#booking-details-modal').modal('hide');
+        document.getElementById('alerts').innerHTML = '<div class="alert alert-success">Deleted booking ' + escapeHtml(result.deleted) + '.</div>';
+        loadCheckout();
+      })
+      .fail(function(xhr) {
+        var message = 'Could not delete booking';
+        if (xhr && xhr.responseJSON && xhr.responseJSON.detail) {
+          message += ': ' + xhr.responseJSON.detail;
+        } else if (xhr && xhr.status) {
+          message += ' (HTTP ' + xhr.status + ')';
+        }
+        showBookingDetailsAlert('danger', message);
+      })
+      .always(function() {
+        buttonEl.disabled = false;
+        buttonEl.textContent = 'Delete booking';
+      });
   }
 
 
@@ -803,7 +925,7 @@
             '<td>' + escapeHtml(day.checkout_date) + '</td>' +
             '<td>' + escapeHtml(group.property) + '</td>' +
             '<td>' + escapeHtml(group.count) + '</td>' +
-            '<td>' + bookings.map(function(booking) { return escapeHtml(booking.listing_number || '-'); }).join('<br>') + '</td>' +
+            '<td>' + bookings.map(bookingDetailsLinkHtml).join('<br>') + '</td>' +
             '<td>' + sessionText(sessions) + '</td>' +
             '<td>' + sessionTimeText(sessions) + '</td>' +
             '<td>' + sessionFixCostText(sessions) + '</td>' +
@@ -840,7 +962,7 @@
             '<td>' + escapeHtml(day.checkout_date) + '</td>' +
             '<td><span class="label label-warning">Unassigned property</span></td>' +
             '<td>-</td>' +
-            '<td>' + escapeHtml(booking.listing_number || '-') + '</td>' +
+            '<td>' + bookingDetailsLinkHtml(booking) + '</td>' +
             '<td>' + sessionText(unassignedSessions) + '</td>' +
             '<td>' + sessionTimeText(unassignedSessions) + '</td>' +
             '<td>' + sessionFixCostText(unassignedSessions) + '</td>' +
@@ -1010,6 +1132,12 @@
   }
 
   document.getElementById('checkout-body').addEventListener('click', function(event) {
+    var bookingLink = event.target.closest('.booking-details-link');
+    if (bookingLink) {
+      openBookingDetailsModal(bookingLink.getAttribute('data-confirmation-code'));
+      return;
+    }
+
     var editBtn = event.target.closest('.edit-session-btn');
     if (editBtn) {
       openEditSessionModal(editBtn.getAttribute('data-session-id'));
@@ -1038,6 +1166,10 @@
       var deleteKey = deleteBtn.getAttribute('data-group-key');
       deleteSessionsForGroup(deleteKey, deleteBtn);
     }
+  });
+
+  document.getElementById('delete-booking-modal-btn').addEventListener('click', function(event) {
+    deleteBookingFromModal(event.currentTarget);
   });
 
   document.getElementById('edit-session-related').addEventListener('click', function(event) {
