@@ -4,10 +4,10 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.background import BackgroundTask
 from fastapi.responses import FileResponse
 from pypdf import PdfReader, PdfWriter
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 
 from app import models
 from app.config import settings
