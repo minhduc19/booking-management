@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>PDF Documents</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container" style="max-width:700px; margin-top:40px;">
+  <div class="page-header"><h2>PDF Documents <small>Upload and download a merged PDF</small></h2></div>
+  <div id="alerts" aria-live="polite"></div>
+  <div class="panel panel-default"><div class="panel-body">
+    <div class="form-group">
+      <label for="pdf-files">Select PDF files</label>
+      <input type="file" id="pdf-files" accept="application/pdf,.pdf" multiple>
+      <p class="help-block">Select one or more PDFs to include in the merged download.</p>
+    </div>
+    <ul id="file-list" class="list-unstyled"></ul>
+    <button class="btn btn-primary" id="upload-btn" disabled>Upload PDFs</button>
+    <a class="btn btn-success" id="download-btn" href="/documents/merged-download">Download merged PDFs</a>
+  </div></div>
+</div>
+<script>
+  var filesInput = document.getElementById('pdf-files');
+  var uploadButton = document.getElementById('upload-btn');
+  var downloadButton = document.getElementById('download-btn');
+  var fileList = document.getElementById('file-list');
+  var alerts = document.getElementById('alerts');
+
+  function showAlert(type, message) {
+    alerts.textContent = '';
+    var alert = document.createElement('div');
+    alert.className = 'alert alert-' + type;
+    alert.textContent = message;
+    alerts.appendChild(alert);
+  }
+
+  filesInput.addEventListener('change', function () {
+    fileList.textContent = '';
+    Array.prototype.forEach.call(filesInput.files, function (file) {
+      var item = document.createElement('li');
+      item.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+      fileList.appendChild(item);
+    });
+    uploadButton.disabled = filesInput.files.length === 0;
+  });
+
+  uploadButton.addEventListener('click', function () {
+    var formData = new FormData();
+    Array.prototype.forEach.call(filesInput.files, function (file) { formData.append('files', file); });
+    uploadButton.disabled = true;
+    uploadButton.textContent = 'Uploading...';
+    fetch('/documents/upload', {method: 'POST', body: formData})
+      .then(function (response) {
+        if (!response.ok) return response.json().then(function (body) { throw new Error(body.detail || 'Upload failed.'); });
+        return response.json();
+      })
+      .then(function (body) {
+        showAlert('success', body.uploaded.length + ' PDF file(s) uploaded.');
+        filesInput.value = '';
+        fileList.textContent = '';
+      })
+      .catch(function (error) { showAlert('danger', error.message); })
+      .finally(function () { uploadButton.disabled = filesInput.files.length === 0; uploadButton.textContent = 'Upload PDFs'; });
+  });
+
+  downloadButton.addEventListener('click', function (event) {
+    event.preventDefault();
+    downloadButton.classList.add('disabled');
+    fetch('/documents/merged-download')
+      .then(function (response) {
+        if (!response.ok) return response.json().then(function (body) { throw new Error(body.detail || 'Download failed.'); });
+        var disposition = response.headers.get('Content-Disposition') || '';
+        var name = (disposition.match(/filename="?([^";]+)"?/) || [])[1] || 'merged-documents.pdf';
+        return response.blob().then(function (blob) { return {blob: blob, name: name}; });
+      })
+      .then(function (file) {
+        var url = URL.createObjectURL(file.blob);
+        var link = document.createElement('a');
+        link.href = url; link.download = file.name; link.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(function (error) { showAlert('danger', error.message); })
+      .finally(function () { downloadButton.classList.remove('disabled'); });
+  });
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, Date, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -104,3 +105,13 @@ class SessionBooking(Base):
 
     session = relationship("CleaningSession", back_populates="session_bookings")
     booking = relationship("Booking", back_populates="session_bookings")
+
+
+class UploadedPdf(Base):
+    __tablename__ = "uploaded_pdfs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    original_filename = Column(String, nullable=False)
+    storage_name = Column(String, unique=True, nullable=False)
+    content_type = Column(String, nullable=False, default="application/pdf")
+    uploaded_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
