@@ -3,6 +3,7 @@ import io
 from pypdf import PdfReader, PdfWriter
 
 from app.config import settings
+from .database import client
 
 
 def make_pdf(page_count: int = 1) -> bytes:
