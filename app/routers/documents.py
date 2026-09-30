@@ -1,25 +1,10 @@
 import io
-import tempfile
-from pathlib import Path
-from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pypdf import PdfReader, PdfWriter
-from sqlalchemy.orm import Session
-from starlette.background import BackgroundTask
-
-from app import models
-from app.config import settings
-from app.database import get_db
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-
-def _uploads_dir() -> Path:
-    path = Path(settings.uploads_dir)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def _validate_pdf(contents: bytes, filename: str) -> None:
@@ -32,12 +17,10 @@ def _validate_pdf(contents: bytes, filename: str) -> None:
         raise HTTPException(status_code=400, detail=f"{filename} is not a readable PDF") from exc
 
 
-@router.post("/upload")
-async def upload_pdfs(
-    files: list[UploadFile] = File(...), db: Session = Depends(get_db)
-):
-    uploaded: list[models.UploadedPdf] = []
-    stored_paths: list[Path] = []
+@router.post("/merge-download")
+async def merge_and_download_pdfs(files: list[UploadFile] = File(...)):
+    """Merge submitted PDFs in memory without persisting uploads."""
+    writer = PdfWriter()
 
     try:
         for file in files:
@@ -47,78 +30,18 @@ async def upload_pdfs(
 
             contents = await file.read()
             _validate_pdf(contents, filename)
+            writer.append(io.BytesIO(contents))
 
-            storage_name = f"{uuid4().hex}.pdf"
-            storage_path = _uploads_dir() / storage_name
-            storage_path.write_bytes(contents)
-            stored_paths.append(storage_path)
-            uploaded_pdf = models.UploadedPdf(
-                original_filename=Path(filename).name,
-                storage_name=storage_name,
-                content_type="application/pdf",
-            )
-            db.add(uploaded_pdf)
-            uploaded.append(uploaded_pdf)
-
-        db.commit()
-        for uploaded_pdf in uploaded:
-            db.refresh(uploaded_pdf)
-    except HTTPException:
-        db.rollback()
-        for path in stored_paths:
-            path.unlink(missing_ok=True)
-        raise
-    except Exception as exc:
-        db.rollback()
-        for path in stored_paths:
-            path.unlink(missing_ok=True)
-        raise HTTPException(status_code=500, detail="Failed to store PDF files") from exc
+        output = io.BytesIO()
+        writer.write(output)
+        output.seek(0)
     finally:
+        writer.close()
         for file in files:
             await file.close()
 
-    return {
-        "uploaded": [
-            {"id": uploaded_pdf.id, "filename": uploaded_pdf.original_filename}
-            for uploaded_pdf in uploaded
-        ]
-    }
-
-
-def _remove_file(path: Path) -> None:
-    path.unlink(missing_ok=True)
-
-
-@router.get("/merged-download")
-def download_merged_pdfs(db: Session = Depends(get_db)):
-    uploaded_pdfs = db.query(models.UploadedPdf).order_by(models.UploadedPdf.id).all()
-    if not uploaded_pdfs:
-        raise HTTPException(status_code=404, detail="No uploaded PDF files found")
-
-    writer = PdfWriter()
-    for uploaded_pdf in uploaded_pdfs:
-        path = _uploads_dir() / uploaded_pdf.storage_name
-        if not path.is_file():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Uploaded PDF {uploaded_pdf.original_filename} is no longer available",
-            )
-        try:
-            writer.append(str(path))
-        except Exception as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Uploaded PDF {uploaded_pdf.original_filename} could not be merged",
-            ) from exc
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as output:
-        writer.write(output)
-        output_path = Path(output.name)
-    writer.close()
-
-    return FileResponse(
-        output_path,
+    return StreamingResponse(
+        output,
         media_type="application/pdf",
-        filename="merged-documents.pdf",
-        background=BackgroundTask(_remove_file, output_path),
+        headers={"Content-Disposition": 'attachment; filename="merged-documents.pdf"'},
     )

@@ -7,7 +7,6 @@ class Settings(BaseSettings):
 
     app_name: str = "FastAPI SQLite App"
     database_url: str = "sqlite:///data/app.db" #file path for production
-    uploads_dir: str = "data/uploads"
 
 
 settings = Settings()
