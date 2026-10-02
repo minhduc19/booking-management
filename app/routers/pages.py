@@ -18,6 +18,13 @@ async def read_upload():
     return HTMLResponse(content=html_content)
 
 
+@router.get("/index-documents", response_class=HTMLResponse)
+async def read_documents():
+    with open("frontend/documents.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
+
 @router.get("/index-cleaner", response_class=HTMLResponse)
 async def read_cleaner():
     with open("frontend/cleaner.html", "r", encoding="utf-8") as f:

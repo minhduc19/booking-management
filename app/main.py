@@ -8,6 +8,7 @@ from app.routers import (
     cleaners,
     cleaning_sessions,
     database,
+    documents,
     listing_metadata,
     pages,
     users,
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(database.router)
+app.include_router(documents.router)
 app.include_router(pages.router)
 app.include_router(cleaners.router)
 app.include_router(bookings.router)
